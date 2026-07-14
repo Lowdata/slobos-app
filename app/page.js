@@ -748,7 +748,12 @@ export default function Home() {
             <input type="text" readOnly value={refLink()} />
             <button className="secondary" style={{ margin: 0 }} onClick={() => { navigator.clipboard?.writeText(refLink()); toast('Link copied'); }}>Copy</button>
           </div>
-          <button className="secondary" onClick={() => setShowResult(false)}>{state.spinsAvailable > 0 ? 'Spin again' : 'Invite friends for more spins'}</button>
+          <button className="secondary" onClick={() => {
+            setShowResult(false);
+            if (state.spinsAvailable <= 0) {
+              shareToTwitter(`Spinning the @Slobos_ wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or FCFS spots. Free to play, zero catch.\n\nUse my link to get started 👇\n${refLink()}`);
+            }
+          }}>{state.spinsAvailable > 0 ? 'Spin again' : 'Invite friends for more spins'}</button>
         </div>
       </Modal>
 
