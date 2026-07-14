@@ -19,6 +19,20 @@ const PFPS = ['/assets/pfp-pow-sm.png', '/assets/pfp-hat-sm.png', '/assets/pfp-m
 const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
 const easeOutQuart = (u) => 1 - Math.pow(1 - u, 4);
 
+// ===== Wheel constants =====
+const POCKETS = 30;
+const POCKET_DEG = 360 / POCKETS;
+const POCKET_COLORS = Array.from({ length: POCKETS }, (_, i) => {
+  if (i === 0 || i === POCKETS / 2) return 'green';
+  return i % 2 ? 'red' : 'black';
+});
+const POCKET_FILL = { green: '#00c805', red: '#d92c2c', black: '#15171a' };
+const WHEEL_STOPS = POCKET_COLORS
+  .map((c, i) => `${POCKET_FILL[c]} ${i * POCKET_DEG}deg ${(i + 1) * POCKET_DEG}deg`)
+  .join(', ');
+const WHEEL_HALF = POCKET_DEG / 2;
+const WHEEL_BACKGROUND = `repeating-conic-gradient(from ${-WHEEL_HALF - 0.3}deg, rgba(255,255,255,.18) 0deg 0.6deg, transparent 0.6deg ${POCKET_DEG}deg), conic-gradient(from ${-WHEEL_HALF}deg, ${WHEEL_STOPS})`;
+
 export default function Home() {
   // ===== State =====
   const [state, setState] = useState({
@@ -76,15 +90,6 @@ export default function Home() {
   // Sound
   const soundRef = useRef(null);
 
-  // ===== Wheel constants =====
-  const POCKETS = 30;
-  const POCKET_DEG = 360 / POCKETS;
-  const POCKET_COLORS = Array.from({ length: POCKETS }, (_, i) => {
-    if (i === 0 || i === POCKETS / 2) return 'green';
-    return i % 2 ? 'red' : 'black';
-  });
-  const POCKET_FILL = { green: '#00c805', red: '#d92c2c', black: '#15171a' };
-
   // ===== Init =====
   useEffect(() => {
     soundRef.current = createSoundManager();
@@ -107,7 +112,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    paintWheel();
     renderWheel();
     const handleResize = () => renderWheel();
     window.addEventListener('resize', handleResize);
@@ -279,18 +283,7 @@ export default function Home() {
     }
   };
 
-  // ===== Wheel painting & animation =====
-  const paintWheel = () => {
-    if (!wheelRef.current) return;
-    const stops = POCKET_COLORS
-      .map((c, i) => `${POCKET_FILL[c]} ${i * POCKET_DEG}deg ${(i + 1) * POCKET_DEG}deg`)
-      .join(', ');
-    const half = POCKET_DEG / 2;
-    wheelRef.current.style.background =
-      `repeating-conic-gradient(from ${-half - 0.3}deg, rgba(255,255,255,.18) 0deg 0.6deg, transparent 0.6deg ${POCKET_DEG}deg), ` +
-      `conic-gradient(from ${-half}deg, ${stops})`;
-  };
-
+  // ===== Wheel animation =====
   const renderWheel = useCallback(() => {
     if (!wheelRef.current || !ballRef.current || !wheelStageRef.current) return;
     wheelRef.current.style.transform = `rotate(${wheelRot.current}deg)`;
@@ -503,10 +496,9 @@ export default function Home() {
           <span className="brand-name">slobos</span>
         </div>
         <div className="tb-side tb-right">
-          {/* Leaderboard — disabled, coming soon */}
-          <button className="gh-btn disabled-trophy" title="Leaderboard — Coming Soon" disabled style={{ display: 'flex', alignItems: 'center', gap: '6px', width: 'auto', padding: '0 12px' }}>
-            <svg className="gh-ico"><use href="#icoTrophy" /></svg>
-            <span style={{ fontSize: '13px' }}>Leaderboard</span>
+          <button className="share-bar-btn" title="Leaderboard — Coming Soon" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+            <svg className="gh-ico" fill="currentColor"><use href="#icoTrophy" /></svg>
+            <span>Leaderboard</span>
           </button>
           <button className={`signup-btn ${state.connected ? 'connected' : ''}`} onClick={() => state.connected ? setShowAccount(true) : (setConnectStep(1), setShowConnect(true))}>
             {state.connected ? (
@@ -534,15 +526,6 @@ export default function Home() {
             }}>
               {soundMuted ? '🔇' : '🔊'}
             </button>
-          </div>
-          <div className="gh-right">
-            <button className="gh-btn" title="Share" onClick={() => {
-              if (!state.connected) { setConnectStep(1); setShowConnect(true); }
-              else shareToTwitter(`Spinning the @SLOBOS wheel for a GTD whitelist spot 👇\n${refLink()}`);
-            }}>
-              <svg className="gh-ico" fill="currentColor"><use href="#icoShare" /></svg>
-            </button>
-            <span className="vr"></span>
             <button className="gh-btn" title="How it works" onClick={() => setShowInfo(true)}>ⓘ</button>
           </div>
         </div>
@@ -629,7 +612,7 @@ export default function Home() {
               <svg className="paw paw-l" aria-hidden="true"><use href="#sloboPaw" /></svg>
               <svg className="paw paw-r" aria-hidden="true"><use href="#sloboPaw" /></svg>
               <div className="wheel-stage" ref={wheelStageRef}>
-                <div key="wheel" className="wheel" ref={wheelRef}></div>
+                <div key="wheel" className="wheel" ref={wheelRef} style={{ background: WHEEL_BACKGROUND }}></div>
                 <div key="hub" className="wheel-hub"></div>
                 <div key="ball" className="ball" ref={ballRef}></div>
               </div>
