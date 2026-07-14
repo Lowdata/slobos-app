@@ -86,7 +86,7 @@ export async function POST(req) {
       twitter: twitter || null,
       referralCode,
       referredBy: refBy,
-      spinsAvailable: 0,
+      spinsAvailable: 1,
     });
 
     return NextResponse.json(user);

@@ -69,7 +69,7 @@ export default function Home() {
   const rafId = useRef(null);
   const wheelRot = useRef(0);
   const ballAngle = useRef(0);
-  const ballR = useRef(0.42);
+  const ballR = useRef(0.70);
   const [flash, setFlash] = useState(null);
 
   // Sound
@@ -329,9 +329,9 @@ export default function Home() {
     const D = (((B0 - catchTarget) % 360) + 360) % 360 + 3 * 360;
     const B = (t) => B0 - D * easeOutQuart(Math.min(t / tCatch, 1));
 
-    // Ball radii — keep inside wheel bounds (0.42 = inner track, 0.36 = pocket)
-    const R_TRACK = 0.42;
-    const R_POCKET = 0.36;
+    // Ball radii — keep inside wheel bounds
+    const R_TRACK = 0.82;
+    const R_POCKET = 0.70;
 
     // Start spin sound
     soundRef.current?.startSpin();
