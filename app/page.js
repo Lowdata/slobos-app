@@ -514,7 +514,7 @@ export default function Home() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
-                <span>@{state.twitter}</span>
+                <span>{state.twitter?.startsWith('@') ? state.twitter : `@${state.twitter}`}</span>
               </>
             ) : 'CONNECT WALLET'}
           </button>
@@ -629,10 +629,9 @@ export default function Home() {
               <svg className="paw paw-l" aria-hidden="true"><use href="#sloboPaw" /></svg>
               <svg className="paw paw-r" aria-hidden="true"><use href="#sloboPaw" /></svg>
               <div className="wheel-stage" ref={wheelStageRef}>
-                <div className="pointer"></div>
-                <div className="wheel" ref={wheelRef}></div>
-                <div className="wheel-hub"></div>
-                <div className="ball" ref={ballRef}></div>
+                <div key="wheel" className="wheel" ref={wheelRef}></div>
+                <div key="hub" className="wheel-hub"></div>
+                <div key="ball" className="ball" ref={ballRef}></div>
               </div>
               <div className="scanlines"></div>
               {flash && (
@@ -764,7 +763,7 @@ export default function Home() {
         {showOnboardingTasks && (
           <div className="gate-step done" style={{ marginBottom: '16px', background: 'var(--mint-soft)', borderColor: 'var(--mint)' }}>
             <span className="dot" style={{ background: 'var(--mint)', color: '#000' }}>✓</span>
-            <span style={{ flex: 1, color: 'var(--mint)' }}>X/Twitter connected: <strong>@{state.twitter}</strong></span>
+            <span style={{ flex: 1, color: 'var(--mint)' }}>X/Twitter connected: <strong>{state.twitter?.startsWith('@') ? state.twitter : `@${state.twitter}`}</strong></span>
           </div>
         )}
 
