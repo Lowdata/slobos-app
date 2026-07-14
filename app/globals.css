@@ -77,8 +77,9 @@ button { font-family: var(--font); cursor: pointer; }
 }
 .signup-btn:hover { filter: brightness(1.08); }
 .signup-btn.connected {
-  background: transparent; color: var(--mint); border: 1px solid var(--line-2);
-  text-transform: none; letter-spacing: 0;
+  background: var(--mint-soft); color: var(--mint); border: 1px solid var(--mint);
+  text-transform: none; letter-spacing: 0; display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 20px;
 }
 
 /* Disabled trophy (leaderboard coming soon) */

@@ -38,8 +38,8 @@ const TASKS = [
   },
   {
     taskId: 'rt_pinned',
-    title: 'Retweet pinned tweet',
-    description: 'RT the pinned launch tweet to spread the word',
+    title: 'Like and RT pinned tweet',
+    description: 'Like and RT the pinned launch tweet to spread the word',
     rewardSpins: 2,
     actionLink: 'https://twitter.com/SLOBOS' // Replace with actual tweet URL when pinned tweet is live
   },

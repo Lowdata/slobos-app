@@ -19,7 +19,7 @@ export async function GET(req) {
       return NextResponse.json({ exists: false });
     }
 
-    // Check if a username is already taken
+    // Check if a username is already taken (no longer strictly needed, but keeping endpoint for safety)
     if (checkUsername) {
       const taken = await User.findOne({ username: checkUsername });
       return NextResponse.json({ taken: !!taken });
@@ -32,14 +32,14 @@ export async function GET(req) {
   }
 }
 
-// POST — create new user
+  // POST — create new user
 export async function POST(req) {
   try {
     await connectToDatabase();
     const body = await req.json();
-    const { walletAddress, username, twitter, referredBy } = body;
+    const { walletAddress, twitter, referredBy } = body;
 
-    if (!walletAddress || !username) {
+    if (!walletAddress || !twitter) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -49,11 +49,8 @@ export async function POST(req) {
       return NextResponse.json(user);
     }
 
-    // Block duplicate usernames
-    const usernameTaken = await User.findOne({ username });
-    if (usernameTaken) {
-      return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
-    }
+    // Auto-generate username from twitter handle
+    const username = twitter.replace('@', '');
 
     // Referral code generation (up to 7 chars)
     const generateRefCode = (name) => {

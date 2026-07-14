@@ -44,16 +44,17 @@ export default function Home() {
 
   // Modals
   const [showConnect, setShowConnect] = useState(false);
-  const [connectStep, setConnectStep] = useState(1); // 1=wallet, 2=username, 3=twitter
+  const [connectStep, setConnectStep] = useState(1); // 1=wallet, 2=referral, 3=twitter
   const [showResult, setShowResult] = useState(false);
   const [showTasks, setShowTasks] = useState(false);
+  const [showOnboardingTasks, setShowOnboardingTasks] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
   const [resultData, setResultData] = useState({ result: 'red', label: '' });
 
   // Inputs
-  const [usernameInput, setUsernameInput] = useState('');
+  const [referralInput, setReferralInput] = useState('');
   const [twitterInput, setTwitterInput] = useState('');
   const [connectedWallet, setConnectedWallet] = useState(null);
 
@@ -88,10 +89,11 @@ export default function Home() {
   useEffect(() => {
     soundRef.current = createSoundManager();
 
+    // Check if referral link
     const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('ref');
-    if (ref) {
-      setState(s => ({ ...s, referredBy: ref }));
+    const refParam = urlParams.get('ref');
+    if (refParam) {
+      setReferralInput(refParam);
     }
 
     const savedWallet = localStorage.getItem('slobos_wallet');
@@ -132,7 +134,7 @@ export default function Home() {
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet, username: 'returning' })
+        body: JSON.stringify({ walletAddress: wallet, twitter: 'returning' })
       });
       const data = await res.json();
       if (data && data.walletAddress) {
@@ -140,7 +142,7 @@ export default function Home() {
           ...s,
           connected: true,
           wallet: data.walletAddress,
-          twitter: data.twitter || data.username,
+          twitter: data.twitter || data.walletAddress.substring(0,6),
           refCode: data.referralCode,
           spinsAvailable: data.spinsAvailable,
           tickets: data.tickets,
@@ -171,6 +173,12 @@ export default function Home() {
   // ===== Stepwise connect flow =====
   const handleConnectWallet = async () => {
     if (!window.ethereum) {
+      // If on mobile without metamask browser, redirect to metamask
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = 'https://metamask.app.link/dapp/' + window.location.host.replace(/^https?:\/\//, '');
+        return;
+      }
       toast('MetaMask not found. Please install it.');
       return;
     }
@@ -193,31 +201,11 @@ export default function Home() {
         return;
       }
 
-      setConnectStep(2); // new user — proceed to username
+      setConnectStep(2); // new user — proceed to referral
     } catch (e) {
       console.error(e);
       toast('Wallet connection failed');
     }
-  };
-
-  const handleSubmitUsername = async () => {
-    const name = usernameInput.trim();
-    if (!name) {
-      toast('Please enter a username');
-      return;
-    }
-    // Check if username is taken
-    try {
-      const res = await fetch(`/api/user?checkUsername=${encodeURIComponent(name)}`);
-      const data = await res.json();
-      if (data.taken) {
-        toast('Username already taken. Try another one.');
-        return;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    setConnectStep(3); // move to twitter step
   };
 
   const handleSubmitTwitter = async () => {
@@ -225,7 +213,10 @@ export default function Home() {
       toast('Please enter your Twitter handle');
       return;
     }
+    setConnectStep(3); // move to referral step
+  };
 
+  const handleSubmitReferral = async () => {
     const handle = twitterInput.trim().replace(/^@?/, '@');
 
     try {
@@ -234,9 +225,8 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           walletAddress: connectedWallet,
-          username: usernameInput.trim(),
           twitter: handle,
-          referredBy: state.referredBy,
+          referredBy: referralInput.trim(),
         })
       });
       const data = await res.json();
@@ -246,7 +236,8 @@ export default function Home() {
         await fetchUserData(data.walletAddress);
         setShowConnect(false);
         setConnectStep(1);
-        toast('🎰 Welcome to SLOBOS! Complete tasks to earn spins.');
+        toast('🎰 Welcome to SLOBOS!');
+        setShowOnboardingTasks(true); // Open onboarding tasks
       }
     } catch (e) {
       console.error(e);
@@ -513,12 +504,22 @@ export default function Home() {
         </div>
         <div className="tb-side tb-right">
           {/* Leaderboard — disabled, coming soon */}
-          <button className="gh-btn disabled-trophy" title="Leaderboard — Coming Soon" disabled>
+          <button className="gh-btn disabled-trophy" title="Leaderboard — Coming Soon" disabled style={{ display: 'flex', alignItems: 'center', gap: '6px', width: 'auto', padding: '0 12px' }}>
             <svg className="gh-ico"><use href="#icoTrophy"/></svg>
+            <span style={{ fontSize: '13px' }}>Leaderboard</span>
           </button>
-          {!state.connected && <button className="login-link" onClick={() => { setConnectStep(1); setShowConnect(true); }}>LOGIN</button>}
+          {!state.connected ? (
+            <button className="login-link" onClick={() => { setConnectStep(1); setShowConnect(true); }}>LOGIN</button>
+          ) : null}
           <button className={`signup-btn ${state.connected ? 'connected' : ''}`} onClick={() => state.connected ? setShowAccount(true) : (setConnectStep(1), setShowConnect(true))}>
-            {state.connected ? state.twitter : 'SIGNUP'}
+            {state.connected ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                <span>@{state.twitter}</span>
+              </>
+            ) : 'SIGNUP'}
           </button>
         </div>
       </header>
@@ -561,7 +562,7 @@ export default function Home() {
                     <span className="bc-name">{color.toUpperCase()}</span>
                   </span>
                   <span className="bc-payout">
-                    {color === 'red' ? 'Nothing · 45%' : color === 'black' ? '+1 Ticket · 45%' : 'GTD WL · ~8%'}
+                    {color === 'red' ? 'Nothing · 45%' : color === 'black' ? 'FCFS · 45%' : 'Sloblist · 10%'}
                   </span>
                 </button>
               ))}
@@ -593,24 +594,11 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="panel-spacer"></div>
-
-            <div className="spin-actions">
-              <button
-                className={`spin-btn ${spinning ? 'spinning' : ''}`}
-                disabled={spinning || loading}
-                onClick={() => {
-                  if (!state.connected) { setConnectStep(1); setShowConnect(true); return; }
-                  if (state.spinsAvailable <= 0) { setShowTasks(true); return; }
-                  doSpin();
-                }}
-              >
-                {!state.connected ? 'CONNECT TO DEGEN' : (state.spinsAvailable === 0 ? 'GET SPINS' : 'RISKIIIT!')}
+            <div className="spin-actions" style={{ marginTop: '24px' }}>
+              <button className={`spin-btn ${spinning ? 'spinning' : ''}`} onClick={() => doSpin()} disabled={spinning || !state.connected || state.spinsAvailable < 1}>
+                {spinning ? 'SPINNING...' : 'SPIN IT'}
               </button>
             </div>
-            <p className="disclaimer">
-              Chance-based rewards may qualify as gaming in some regions · 1 wallet = 1 entry · min. 30-day X account. Slop responsibly.
-            </p>
           </section>
 
           {/* Right: Wheel */}
@@ -691,42 +679,47 @@ export default function Home() {
 
         {connectStep === 2 && (
           <>
-            <h2>Step 2 · Username</h2>
-            <p className="sub">Choose a username for the leaderboard.</p>
+            <h2>Step 2 · Twitter / X</h2>
+            <p className="sub">Link your X account to unlock spins.</p>
             <div className="gate-step done">
               <span className="dot">✓</span>
-              <span style={{flex:1}}>Wallet: {connectedWallet?.slice(0,6)}...{connectedWallet?.slice(-4)}</span>
+              <span style={{flex:1}}>Wallet connected</span>
             </div>
             <div className="gate-step">
               <span className="dot">2</span>
-              <span style={{flex:1}}>Username</span>
+              <span style={{flex:1}}>Twitter handle</span>
             </div>
-            <label>Username</label>
-            <input type="text" placeholder="your_name" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmitUsername()} />
-            <button className="primary" onClick={handleSubmitUsername}>Continue</button>
+            <label>X / Twitter Handle</label>
+            <input type="text" placeholder="@yourhandle" value={twitterInput} onChange={e => setTwitterInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmitTwitter()} />
+            <button className="primary" onClick={handleSubmitTwitter}>Continue</button>
             <button className="secondary" onClick={() => setConnectStep(1)}>Back</button>
           </>
         )}
 
         {connectStep === 3 && (
           <>
-            <h2>Step 3 · Twitter / X</h2>
-            <p className="sub">Link your X account to unlock spins.</p>
+            <h2>Step 3 · Referral</h2>
+            <p className="sub">Enter a referral code if you have one.</p>
             <div className="gate-step done">
               <span className="dot">✓</span>
               <span style={{flex:1}}>Wallet connected</span>
             </div>
             <div className="gate-step done">
               <span className="dot">✓</span>
-              <span style={{flex:1}}>Username: {usernameInput}</span>
+              <span style={{flex:1}}>Twitter: {twitterInput || '(none)'}</span>
             </div>
             <div className="gate-step">
-              <span className="dot">3</span>
-              <span style={{flex:1}}>Twitter handle</span>
+              <div className="step-content">
+                <span style={{flex:1}}>Referral Code</span>
+              </div>
             </div>
-            <label>X / Twitter Handle</label>
-            <input type="text" placeholder="@yourhandle" value={twitterInput} onChange={e => setTwitterInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmitTwitter()} />
-            <button className="primary" onClick={handleSubmitTwitter}>Complete Signup</button>
+            <div className="step-input">
+              <div className="input-row">
+                <input type="text" placeholder="Optional" value={referralInput} onChange={e => setReferralInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmitReferral()} />
+                <button className="gh-btn" onClick={handleSubmitReferral}>→</button>
+              </div>
+            </div>
+            <button className="primary" onClick={handleSubmitReferral}>Complete Signup</button>
             <button className="secondary" onClick={() => setConnectStep(2)}>Back</button>
           </>
         )}
@@ -752,28 +745,44 @@ export default function Home() {
       </Modal>
 
       {/* Tasks Modal */}
-      <Modal isOpen={showTasks} onClose={() => setShowTasks(false)}>
-        <h2>🎯 Available Tasks</h2>
-        <p className="sub">Complete tasks to earn more spins. Every task is free!</p>
-        {tasks.map(t => (
-          <div key={t.taskId} className="task-row">
-            <div className="task-info">
-              <div className="task-title">{t.title}</div>
-              <div className="task-desc">{t.description}</div>
-            </div>
-            {completedTasks.includes(t.taskId) ? (
-              <span className="task-done">✓ DONE</span>
-            ) : pendingTasks[t.taskId] ? (
-              <span className="task-pending"><span className="dot-loader"></span>Claiming</span>
-            ) : (
-              <button className="task-btn" onClick={() => startTaskVerification(t.taskId, t.actionLink)}>
-                +{t.rewardSpins} SPINS
-              </button>
-            )}
+      <Modal isOpen={showTasks || showOnboardingTasks} onClose={() => { setShowTasks(false); setShowOnboardingTasks(false); }}>
+        <h2>🎯 {showOnboardingTasks ? 'Welcome! Complete tasks to start' : 'Available Tasks'}</h2>
+        
+        {showOnboardingTasks && (
+          <div className="gate-step done" style={{ marginBottom: '16px', background: 'var(--mint-soft)', borderColor: 'var(--mint)' }}>
+            <span className="dot" style={{ background: 'var(--mint)', color: '#000' }}>✓</span>
+            <span style={{flex:1, color: 'var(--mint)'}}>X/Twitter connected: <strong>@{state.twitter}</strong></span>
           </div>
-        ))}
+        )}
+
+        <p className="sub">{showOnboardingTasks ? 'Complete these 3 tasks to earn your first spins.' : 'Complete tasks to earn more spins. Every task is free!'}</p>
+        {tasks.filter(t => showOnboardingTasks ? ['follow_twitter', 'rt_pinned', 'tweet_referral'].includes(t.taskId) : true).map(t => {
+          let dynamicActionLink = t.actionLink;
+          if (t.taskId === 'tweet_referral') {
+            dynamicActionLink = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Spinning the @SLOBOS wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or raffle tickets. Free to play, zero catch.\n\nUse my link to get started 👇\n${refLink()}`)}`;
+          }
+          return (
+            <div key={t.taskId} className="task-row">
+              <div className="task-info">
+                <div className="task-title">{t.title}</div>
+                <div className="task-desc">{t.description}</div>
+              </div>
+              {completedTasks.includes(t.taskId) ? (
+                <span className="task-done">✓ DONE</span>
+              ) : pendingTasks[t.taskId] ? (
+                <span className="task-pending"><span className="dot-loader"></span>Claiming</span>
+              ) : (
+                <button className="task-btn" onClick={() => startTaskVerification(t.taskId, dynamicActionLink)}>
+                  +{t.rewardSpins} SPINS
+                </button>
+              )}
+            </div>
+          );
+        })}
         {tasks.length === 0 && <p style={{color:'var(--faint)', padding:'20px 0'}}>No tasks available right now. Check back later!</p>}
-        <button className="secondary" style={{marginTop:'16px'}} onClick={() => setShowTasks(false)}>Close</button>
+        <button className="secondary" style={{marginTop:'16px'}} onClick={() => { setShowTasks(false); setShowOnboardingTasks(false); }}>
+          {showOnboardingTasks ? 'I will do it later' : 'Close'}
+        </button>
       </Modal>
 
       {/* Info / How It Works */}
