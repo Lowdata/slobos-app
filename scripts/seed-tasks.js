@@ -15,20 +15,49 @@ const TaskSchema = new mongoose.Schema({
 
 const Task = mongoose.models.Task || mongoose.model('Task', TaskSchema);
 
+// Pre-made tweet messages using Twitter intent API
+const tweetIntent = (text) =>
+  `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+
+const followIntent = (username) =>
+  `https://twitter.com/intent/follow?screen_name=${username}`;
+
+const retweetIntent = (tweetId) =>
+  `https://twitter.com/intent/retweet?tweet_id=${tweetId}`;
+
+const likeIntent = (tweetId) =>
+  `https://twitter.com/intent/like?tweet_id=${tweetId}`;
+
 const TASKS = [
   {
     taskId: 'follow_twitter',
     title: 'Follow @SLOBOS on X',
-    description: 'Follow the official SLOBOS account on X (Twitter)',
+    description: 'Follow the official SLOBOS account on X',
     rewardSpins: 3,
-    actionLink: 'https://twitter.com/SLOBOS'
+    actionLink: followIntent('SLOBOS')
   },
   {
     taskId: 'rt_pinned',
-    title: 'Retweet pinned launch tweet',
-    description: 'RT the pinned tweet to spread the word',
+    title: 'Retweet pinned tweet',
+    description: 'RT the pinned launch tweet to spread the word',
     rewardSpins: 2,
-    actionLink: 'https://twitter.com/SLOBOS'
+    actionLink: 'https://twitter.com/SLOBOS' // Replace with actual tweet URL when pinned tweet is live
+  },
+  {
+    taskId: 'like_tweet',
+    title: 'Like latest tweet',
+    description: 'Like the most recent tweet from @SLOBOS',
+    rewardSpins: 1,
+    actionLink: 'https://twitter.com/SLOBOS' // Replace with actual tweet URL
+  },
+  {
+    taskId: 'quote_tweet',
+    title: 'Quote tweet about SLOBOS',
+    description: 'Share your take on SLOBOS with your followers',
+    rewardSpins: 3,
+    actionLink: tweetIntent(
+      `Just found @SLOBOS — a gamified whitelist roulette for degens 🎰\n\nSpin the wheel, win a GTD WL spot or raffle tickets. No buy-in, just vibes.\n\nNFA but this is the most fun I've had on CT in a while 👇`
+    )
   },
   {
     taskId: 'join_discord',
@@ -38,25 +67,29 @@ const TASKS = [
     actionLink: 'https://discord.gg/slobos'
   },
   {
-    taskId: 'like_tweet',
-    title: 'Like latest tweet',
-    description: 'Like the most recent tweet from @SLOBOS',
-    rewardSpins: 1,
-    actionLink: 'https://twitter.com/SLOBOS'
-  },
-  {
-    taskId: 'quote_tweet',
-    title: 'Quote tweet about SLOBOS',
-    description: 'Quote tweet about your experience with the roulette',
-    rewardSpins: 3,
-    actionLink: 'https://twitter.com/SLOBOS'
+    taskId: 'tweet_hype',
+    title: 'Tweet about the roulette',
+    description: 'Post a hype tweet about the SLOBOS roulette',
+    rewardSpins: 2,
+    actionLink: tweetIntent(
+      `The @SLOBOS roulette wheel is live 🟢⚫🔴\n\nFree spins. GTD whitelist spots. No mint price.\n\nThis is how you do community-first launches. Spin or stay poor 🎡`
+    )
   },
   {
     taskId: 'invite_friend',
-    title: 'Invite 1 friend',
-    description: 'Share your referral link and get a friend to spin',
+    title: 'Invite a friend',
+    description: 'Share your referral link and get a friend to sign up',
     rewardSpins: 2,
-    actionLink: null
+    actionLink: null // handled by the referral system
+  },
+  {
+    taskId: 'tweet_referral',
+    title: 'Share your referral link',
+    description: 'Tweet your personal referral link to earn bonus spins',
+    rewardSpins: 2,
+    actionLink: tweetIntent(
+      `Spinning the @SLOBOS wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or raffle tickets. Free to play, zero catch.\n\nUse my link to get started 👇`
+    )
   }
 ];
 

@@ -179,17 +179,43 @@ export default function Home() {
       const accounts = await provider.send('eth_requestAccounts', []);
       const address = accounts[0];
       setConnectedWallet(address);
-      setConnectStep(2); // move to username step
+
+      // Check if this wallet already has an account
+      const checkRes = await fetch(`/api/user?wallet=${address}`);
+      const checkData = await checkRes.json();
+      if (checkData.exists && checkData.user) {
+        // Existing user — log them in directly
+        localStorage.setItem('slobos_wallet', address);
+        await fetchUserData(address);
+        setShowConnect(false);
+        setConnectStep(1);
+        toast('Welcome back! 🎰');
+        return;
+      }
+
+      setConnectStep(2); // new user — proceed to username
     } catch (e) {
       console.error(e);
       toast('Wallet connection failed');
     }
   };
 
-  const handleSubmitUsername = () => {
-    if (!usernameInput.trim()) {
+  const handleSubmitUsername = async () => {
+    const name = usernameInput.trim();
+    if (!name) {
       toast('Please enter a username');
       return;
+    }
+    // Check if username is taken
+    try {
+      const res = await fetch(`/api/user?checkUsername=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (data.taken) {
+        toast('Username already taken. Try another one.');
+        return;
+      }
+    } catch (e) {
+      console.error(e);
     }
     setConnectStep(3); // move to twitter step
   };
