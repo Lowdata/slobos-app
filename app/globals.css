@@ -443,6 +443,19 @@ button { font-family: var(--font); cursor: pointer; }
   font-weight: 700; font-size: 12px; letter-spacing: .5px; transition: .15s;
 }
 .task-btn:hover { background: var(--mint); color: #04180c; }
+.task-pending {
+  flex: none; display: flex; align-items: center; gap: 6px;
+  color: var(--gold); font-weight: 700; font-size: 12px;
+}
+.dot-loader {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+  animation: dotBlink 1.2s ease-in-out infinite;
+  box-shadow: 10px 0 0 -1px var(--gold), 20px 0 0 -1px var(--gold);
+}
+@keyframes dotBlink {
+  0%, 80%, 100% { opacity: .25; }
+  40% { opacity: 1; }
+}
 
 /* ===== Toast ===== */
 .toast {
@@ -453,6 +466,20 @@ button { font-family: var(--font); cursor: pointer; }
 }
 .toast[hidden] { display: none; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } }
+
+/* Success toast for task completion */
+.toast-success {
+  border-color: var(--mint);
+  background: linear-gradient(135deg, #0a1a0f, #0d1f13);
+  color: var(--mint);
+  font-size: 14px;
+  box-shadow: 0 0 20px rgba(119,255,164,.2), 0 16px 40px rgba(0,0,0,.6);
+  animation: toastIn .25s ease, toastGlow 1.5s ease-in-out infinite;
+}
+@keyframes toastGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(119,255,164,.2), 0 16px 40px rgba(0,0,0,.6); }
+  50% { box-shadow: 0 0 30px rgba(119,255,164,.35), 0 16px 40px rgba(0,0,0,.6); }
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 900px) {

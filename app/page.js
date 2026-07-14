@@ -39,6 +39,7 @@ export default function Home() {
   const [spinning, setSpinning] = useState(false);
   const [selectedColor, setSelectedColor] = useState('red');
   const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState('default'); // 'default' | 'success'
   const [soundMuted, setSoundMuted] = useState(false);
 
   // Modals
@@ -59,6 +60,7 @@ export default function Home() {
   // Tasks
   const [tasks, setTasks] = useState([]);
   const [completedTasks, setCompletedTasks] = useState([]);
+  const [pendingTasks, setPendingTasks] = useState({}); // taskId -> countdown seconds
 
   // Animation refs
   const wheelRef = useRef(null);
@@ -111,9 +113,10 @@ export default function Home() {
   }, []);
 
   // ===== Helpers =====
-  const toast = (msg) => {
+  const toast = (msg, type = 'default') => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 2600);
+    setToastType(type);
+    setTimeout(() => setToastMsg(''), 3200);
   };
 
   const refLink = () => {
@@ -225,7 +228,20 @@ export default function Home() {
     }
   };
 
-  const completeTask = async (taskId) => {
+  const startTaskVerification = (taskId, actionLink) => {
+    if (pendingTasks[taskId] || completedTasks.includes(taskId)) return;
+    if (actionLink) window.open(actionLink, '_blank');
+    setPendingTasks(prev => ({ ...prev, [taskId]: true }));
+    setTimeout(() => {
+      completeTaskAPI(taskId);
+      setPendingTasks(prev => {
+        const { [taskId]: _, ...rest } = prev;
+        return rest;
+      });
+    }, 10000);
+  };
+
+  const completeTaskAPI = async (taskId) => {
     if (!state.wallet) return;
     try {
       const res = await fetch('/api/tasks', {
@@ -235,7 +251,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
-        toast(`Task completed! +${data.rewardSpins} spins`);
+        toast(`🎉 Task completed! +${data.rewardSpins} spins earned`, 'success');
         setCompletedTasks(prev => [...prev, taskId]);
         setState(s => ({ ...s, spinsAvailable: data.user.spinsAvailable }));
       } else {
@@ -721,11 +737,10 @@ export default function Home() {
             </div>
             {completedTasks.includes(t.taskId) ? (
               <span className="task-done">✓ DONE</span>
+            ) : pendingTasks[t.taskId] ? (
+              <span className="task-pending"><span className="dot-loader"></span>Claiming</span>
             ) : (
-              <button className="task-btn" onClick={() => {
-                if (t.actionLink) window.open(t.actionLink, '_blank');
-                completeTask(t.taskId);
-              }}>
+              <button className="task-btn" onClick={() => startTaskVerification(t.taskId, t.actionLink)}>
                 +{t.rewardSpins} SPINS
               </button>
             )}
@@ -768,7 +783,7 @@ export default function Home() {
       </Modal>
 
       {/* Toast */}
-      {toastMsg && <div className="toast">{toastMsg}</div>}
+      {toastMsg && <div className={`toast ${toastType === 'success' ? 'toast-success' : ''}`}>{toastMsg}</div>}
     </>
   );
 }
