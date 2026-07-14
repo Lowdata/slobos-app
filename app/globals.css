@@ -1,7 +1,7 @@
 /* =========================================================================
-   SLOBOS · Roulette — UI system replicated from riskiiit.com/games/roulette
+   SLOBOS · Roulette — UI system
    (PixeloidSans, near-black boxes w/ 1px hairline borders, mint #77ffa4,
-   stitched pixel-diamond bet cards) — game mechanics remain ours.
+   stitched pixel-diamond bet cards)
    ========================================================================= */
 @font-face {
   font-family: 'Pixeloid Sans';
@@ -15,20 +15,20 @@
 }
 
 :root {
-  --mint:      #77ffa4;             /* riskiiit signature green */
+  --mint:      #77ffa4;
   --mint-soft: rgba(119,255,164,.14);
-  --bg:        #060606;             /* page black */
-  --box:       #0d0d0d;             /* card/box surface */
-  --box-2:     #131313;             /* inputs, nested boxes */
+  --bg:        #060606;
+  --box:       #0d0d0d;
+  --box-2:     #131313;
   --line:      rgba(255,255,255,.08);
   --line-2:    rgba(255,255,255,.16);
   --txt:       #ffffff;
-  --muted:     #8c9091;             /* their gray */
+  --muted:     #8c9091;
   --faint:     #55585a;
-  --red:       #b5352f;             /* card red */
+  --red:       #b5352f;
   --red-hi:    #ff5c53;
   --gold:      #e8b64c;
-  --lime:      #c6e800;             /* slobo mascot lime (rim light) */
+  --lime:      #c6e800;
   --r-box:     12px;
   --r-el:      6px;
   --font:      'Pixeloid Sans', 'Courier New', ui-monospace, monospace;
@@ -36,12 +36,14 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { scroll-behavior: smooth; }
+
 body {
   background: var(--bg);
   color: var(--txt);
   font-family: var(--font);
   font-size: 14px;
-  -webkit-font-smoothing: none;      /* keep the pixel font crisp */
+  -webkit-font-smoothing: none;
   min-height: 100vh;
 }
 
@@ -79,6 +81,14 @@ button { font-family: var(--font); cursor: pointer; }
   text-transform: none; letter-spacing: 0;
 }
 
+/* Disabled trophy (leaderboard coming soon) */
+.disabled-trophy {
+  opacity: 0.35; cursor: not-allowed; position: relative;
+}
+.disabled-trophy:hover {
+  opacity: 0.5; background: none; color: var(--faint);
+}
+
 /* ===== Page container ===== */
 .page { max-width: 1180px; margin: 0 auto; padding: 18px clamp(12px, 3vw, 28px) 48px; }
 
@@ -95,23 +105,19 @@ button { font-family: var(--font); cursor: pointer; }
   width: 32px; height: 32px; border-radius: var(--r-el); display: grid; place-items: center;
   transition: .15s;
 }
-.gh-btn:hover { color: var(--txt); background: var(--box); }
+/* Hover uses color palette instead of grey */
+.gh-btn:hover { color: var(--mint); background: rgba(119,255,164,.08); }
 .gh-ico { width: 17px; height: 17px; fill: currentColor; stroke: currentColor; }
 .vr { width: 1px; height: 18px; background: var(--line-2); }
-.fast-toggle {
-  display: flex; align-items: center; gap: 8px; color: var(--txt);
-  font-size: 14px; cursor: pointer; user-select: none;
-}
-.fast-toggle input { appearance: none; width: 15px; height: 15px; border: 1px solid var(--line-2); border-radius: 3px; background: transparent; display: grid; place-items: center; cursor: pointer; }
-.fast-toggle input:checked { background: var(--mint); border-color: var(--mint); }
-.fast-toggle input:checked::after { content: "✓"; font-size: 11px; color: #04180c; line-height: 1; display: block; text-align: center; }
+
+/* Sound button */
+.sound-btn { font-size: 16px; }
 
 /* ===== Stage: two boxes ===== */
 .stage {
   display: grid; grid-template-columns: minmax(340px, 530px) 1fr; gap: 16px;
   align-items: stretch;
 }
-@media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
 
 .panel, .wheel-card {
   background: var(--box); border: 1px solid var(--line); border-radius: var(--r-box);
@@ -136,8 +142,6 @@ button { font-family: var(--font); cursor: pointer; }
 }
 .bc-payout { color: var(--muted); font-size: 12px; }
 
-/* stitched diamond colors per card (bright bands + ambient glow, like theirs).
-   --band/--stitch pierce the <use> shadow DOM. */
 .bet-card.red {
   background: radial-gradient(70% 60% at 50% 42%, rgba(198,48,40,.22), transparent 75%), #0a0a0a;
 }
@@ -150,7 +154,6 @@ button { font-family: var(--font); cursor: pointer; }
   background: radial-gradient(70% 60% at 50% 42%, rgba(85,192,120,.2), transparent 75%), #0a0a0a;
 }
 .bet-card.green  .diamond { --band: #57b97c; --stitch: #e2f6e9; filter: drop-shadow(0 0 12px rgba(119,255,164,.5)); }
-/* selected = mint hairline + soft glow, like theirs */
 .bet-card.selected {
   border-color: var(--mint);
   box-shadow: 0 0 0 1px rgba(119,255,164,.35), 0 0 18px rgba(119,255,164,.12);
@@ -203,31 +206,39 @@ button { font-family: var(--font); cursor: pointer; }
 .spin-btn:disabled { opacity: .5; cursor: default; box-shadow: none; }
 .spin-btn.spinning { animation: breathe 1s ease-in-out infinite; }
 @keyframes breathe { 50% { opacity: .65; } }
-.auto-btn {
-  background: #141414; border: 1px solid var(--line-2); color: var(--txt);
-  padding: 0 22px; border-radius: var(--r-el); font-weight: 700; font-size: 13px;
-  letter-spacing: 1px; transition: .15s;
-}
-.auto-btn:hover { border-color: var(--mint); }
-.auto-btn.on { color: var(--mint); border-color: var(--mint); }
 
 .disclaimer { color: var(--faint); font-size: 10.5px; line-height: 1.6; }
 
 /* ===== Right: screen box ===== */
 .wheel-card { display: flex; flex-direction: column; overflow: hidden; }
+
+/* Share bar above wheel scene */
+.wheel-share-bar {
+  display: flex; justify-content: flex-end; padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.share-bar-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 1px solid var(--line-2); color: var(--muted);
+  padding: 7px 14px; border-radius: var(--r-el); font-size: 12px; font-weight: 700;
+  letter-spacing: .5px; transition: .15s;
+}
+.share-bar-btn:hover { border-color: var(--mint); color: var(--mint); }
+.share-bar-btn .gh-ico { width: 14px; height: 14px; }
+
 .wheel-scene {
   position: relative; flex: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
   min-height: 480px; padding: 16px 30px 52px;
-  border-radius: var(--r-box) var(--r-box) 0 0; overflow: hidden;
+  border-radius: 0; overflow: hidden;
   background:
     radial-gradient(120% 90% at 50% 100%, #14532a 0%, #0b3018 42%, #0a1410 72%, #0d0d0d 100%);
 }
-.scanlines { /* CRT feel, like their rendered screen */
+.scanlines {
   position: absolute; inset: 0; pointer-events: none; z-index: 6;
   background: repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,.16) 2px 4px);
 }
-.wheel-scene::after { /* vignette */
+.wheel-scene::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 6;
   background: radial-gradient(115% 100% at 50% 45%, transparent 58%, rgba(0,0,0,.6) 100%);
 }
@@ -237,7 +248,6 @@ button { font-family: var(--font); cursor: pointer; }
   filter: blur(22px);
 }
 
-/* the crowned slobo looms over the table (chin tucks behind the wheel) */
 .gambler {
   position: relative; z-index: 1; width: min(56%, 300px);
   margin-bottom: -30px; pointer-events: none;
@@ -253,7 +263,7 @@ button { font-family: var(--font); cursor: pointer; }
   0%, 100% { transform: translateY(0) rotate(-1.5deg); }
   50%      { transform: translateY(9px) rotate(1.5deg); }
 }
-body.spinning .gambler { animation: hype .45s ease-in-out infinite; }
+.wheel-scene.is-spinning .gambler { animation: hype .45s ease-in-out infinite; }
 @keyframes hype {
   0%, 100% { transform: translateY(0) rotate(-3deg); }
   50%      { transform: translateY(-14px) rotate(3deg); }
@@ -264,8 +274,8 @@ body.spinning .gambler { animation: hype .45s ease-in-out infinite; }
 }
 .paw-l { left: 6%;  transform: rotate(8deg); }
 .paw-r { right: 6%; transform: rotate(-8deg) scaleX(-1); }
-body.spinning .paw-l { animation: drum .3s ease-in-out infinite; }
-body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
+.wheel-scene.is-spinning .paw-l { animation: drum .3s ease-in-out infinite; }
+.wheel-scene.is-spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 @keyframes drum { 50% { translate: 0 -8px; } }
 
 .wheel-stage { position: relative; width: min(66%, 340px); aspect-ratio: 1; z-index: 2; }
@@ -276,7 +286,7 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 }
 .wheel {
   position: absolute; inset: 0; border-radius: 50%;
-  background: #15171a; /* pockets + fret lines painted by paintWheel() in app.js */
+  background: #15171a;
   border: 3px solid #2a2d33;
   box-shadow:
     0 0 0 10px #0e1013,
@@ -296,6 +306,10 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 .wheel-hub::after {
   content: "SLOBOS"; font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--faint);
 }
+
+/* Ball — positioned relative to wheel-stage center. 
+   The JS sets transform: translate(-50%,-50%) rotate(Xdeg) translateY(-R).
+   Ball radius (R) is now 0.36–0.42 of half the stage width, keeping it inside the wheel. */
 .ball {
   position: absolute; top: 50%; left: 50%; width: 13px; height: 13px; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #fff, #c4c8cf); z-index: 5;
@@ -323,7 +337,7 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 @keyframes blink { 50% { opacity: .3; } }
 .feather-sm { width: 13px; height: 13px; color: var(--mint); margin: 0 -2px; }
 
-/* ===== History chips (bottom-left, like theirs) ===== */
+/* ===== History chips ===== */
 .history { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .history .chip {
   font-size: 12px; font-weight: 700; padding: 7px 16px; border-radius: 4px;
@@ -354,7 +368,7 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 .pfp-strip .avatar { width: 48px; height: 48px; }
 .pfp-strip .you-mark { width: 48px; height: 52px; }
 
-/* ===== Modals (signup/login box, riskiiit-style) ===== */
+/* ===== Modals ===== */
 .modal-root { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; }
 .modal-root[hidden] { display: none; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.78); backdrop-filter: blur(3px); }
@@ -386,6 +400,7 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
   color: var(--txt); padding: 12px; border-radius: var(--r-el); font-weight: 700; font-size: 13px;
   letter-spacing: .5px; transition: .15s;
 }
+/* Hover uses color palette (mint) instead of grey */
 .modal .secondary:hover { border-color: var(--mint); color: var(--mint); }
 
 .gate-step {
@@ -412,6 +427,24 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 .lb-row .refs { color: var(--mint); font-weight: 700; }
 .lb-row.you { background: var(--mint-soft); border-radius: var(--r-el); padding-left: 10px; padding-right: 10px; }
 
+/* ===== Task rows in modal ===== */
+.task-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+.task-row:last-of-type { border-bottom: none; }
+.task-info { flex: 1; }
+.task-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.task-desc { color: var(--muted); font-size: 11px; }
+.task-done { color: var(--mint); font-weight: 700; font-size: 13px; flex: none; }
+.task-btn {
+  flex: none; background: rgba(119,255,164,.1); border: 1px solid var(--mint);
+  color: var(--mint); padding: 8px 16px; border-radius: var(--r-el);
+  font-weight: 700; font-size: 12px; letter-spacing: .5px; transition: .15s;
+}
+.task-btn:hover { background: var(--mint); color: #04180c; }
+
+/* ===== Toast ===== */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 60;
   background: var(--box-2); color: var(--txt); border: 1px solid var(--line-2);
@@ -420,3 +453,45 @@ body.spinning .paw-r { animation: drum .3s ease-in-out infinite .15s; }
 }
 .toast[hidden] { display: none; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } }
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .stage { grid-template-columns: 1fr; }
+  .wheel-scene { min-height: 380px; padding: 12px 16px 40px; }
+  .wheel-stage { width: min(80%, 320px); }
+  .gambler { width: min(50%, 220px); }
+  .paw { width: 60px; height: 36px; bottom: 18px; }
+  .paw-l { left: 3%; }
+  .paw-r { right: 3%; }
+  .panel { min-height: auto; padding: 18px; }
+}
+
+@media (max-width: 600px) {
+  .topbar { padding: 8px 10px; }
+  .brand-name { font-size: 18px; }
+  .logo-box { width: 36px; height: 36px; }
+  .logo-mini { width: 22px; height: 24px; }
+  .logo-mark { width: 24px; height: 26px; }
+  .signup-btn { padding: 8px 14px; font-size: 12px; }
+  .login-link { padding: 6px 8px; font-size: 12px; }
+  .gh-title { font-size: 14px; }
+  .bet-cards { gap: 6px; }
+  .bet-card { padding: 10px 4px 8px; }
+  .bc-name { font-size: 12px; }
+  .bc-payout { font-size: 10px; }
+  .wheel-scene { min-height: 300px; padding: 8px 10px 30px; }
+  .wheel-stage { width: min(85%, 280px); }
+  .gambler { width: min(50%, 180px); }
+  .paw { width: 48px; height: 28px; bottom: 12px; }
+  .spin-btn { padding: 12px; font-size: 14px; }
+  .modal { padding: 18px; }
+  .history .chip { padding: 5px 10px; font-size: 11px; }
+}
+
+@media (max-width: 380px) {
+  .tb-center { gap: 6px; }
+  .brand-name { font-size: 16px; }
+  .bet-cards { grid-template-columns: 1fr; gap: 6px; }
+  .wheel-scene { min-height: 260px; }
+  .wheel-stage { width: 90%; }
+}

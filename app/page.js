@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Modal from '@/components/Modal';
+import { createSoundManager } from '@/lib/sounds';
 import { BrowserProvider } from 'ethers';
 
 const CONFIG = {
@@ -15,16 +16,15 @@ const CONFIG = {
 
 const PFPS = ['/assets/pfp-pow-sm.png', '/assets/pfp-hat-sm.png', '/assets/pfp-melt-sm.jpg'];
 
-// Helper for easeOutCubic and Quart
 const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
 const easeOutQuart = (u) => 1 - Math.pow(1 - u, 4);
 
 export default function Home() {
+  // ===== State =====
   const [state, setState] = useState({
     connected: false,
     wallet: null,
     twitter: null,
-    followed: true,
     refCode: null,
     referredBy: null,
     spinsAvailable: 0,
@@ -33,41 +33,59 @@ export default function Home() {
     streak: 0,
     referrals: 0,
     history: [],
-    turboFast: false,
   });
 
   const [loading, setLoading] = useState(true);
   const [spinning, setSpinning] = useState(false);
   const [selectedColor, setSelectedColor] = useState('red');
   const [toastMsg, setToastMsg] = useState('');
+  const [soundMuted, setSoundMuted] = useState(false);
 
-  // Modals state
+  // Modals
   const [showConnect, setShowConnect] = useState(false);
+  const [connectStep, setConnectStep] = useState(1); // 1=wallet, 2=username, 3=twitter
   const [showResult, setShowResult] = useState(false);
   const [showTasks, setShowTasks] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
-  
+  const [showInfo, setShowInfo] = useState(false);
+
   const [resultData, setResultData] = useState({ result: 'red', label: '' });
-  
-  // Inputs for Modals
+
+  // Inputs
   const [usernameInput, setUsernameInput] = useState('');
-  
-  // Tasks state
+  const [twitterInput, setTwitterInput] = useState('');
+  const [connectedWallet, setConnectedWallet] = useState(null);
+
+  // Tasks
   const [tasks, setTasks] = useState([]);
   const [completedTasks, setCompletedTasks] = useState([]);
 
-  // Refs for animation
+  // Animation refs
   const wheelRef = useRef(null);
   const ballRef = useRef(null);
-  const wheelSceneRef = useRef(null);
+  const wheelStageRef = useRef(null);
   const rafId = useRef(null);
-  
   const wheelRot = useRef(0);
   const ballAngle = useRef(0);
-  const ballR = useRef(0.70);
+  const ballR = useRef(0.42);
   const [flash, setFlash] = useState(null);
 
+  // Sound
+  const soundRef = useRef(null);
+
+  // ===== Wheel constants =====
+  const POCKETS = 30;
+  const POCKET_DEG = 360 / POCKETS;
+  const POCKET_COLORS = Array.from({ length: POCKETS }, (_, i) => {
+    if (i === 0 || i === POCKETS / 2) return 'green';
+    return i % 2 ? 'red' : 'black';
+  });
+  const POCKET_FILL = { green: '#00c805', red: '#d92c2c', black: '#15171a' };
+
+  // ===== Init =====
   useEffect(() => {
+    soundRef.current = createSoundManager();
+
     const urlParams = new URLSearchParams(window.location.search);
     const ref = urlParams.get('ref');
     if (ref) {
@@ -79,28 +97,39 @@ export default function Home() {
       fetchUserData(savedWallet);
     } else {
       setLoading(false);
+      // Auto-show connect modal if not logged in
+      setTimeout(() => setShowConnect(true), 600);
     }
-    
-    // Auto populate a fake task for testing if none exist in DB yet
-    setTasks([{ taskId: 'follow_twitter', title: 'Follow on X', description: 'Follow @SLOBOS on X', rewardSpins: 3, actionLink: 'https://twitter.com' }]);
   }, []);
 
   useEffect(() => {
     paintWheel();
     renderWheel();
+    const handleResize = () => renderWheel();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // ===== Helpers =====
   const toast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 2600);
   };
 
+  const refLink = () => {
+    if (typeof window !== 'undefined' && state.refCode) {
+      return `${window.location.origin}?ref=${state.refCode}`;
+    }
+    return '';
+  };
+
+  // ===== Data fetching =====
   const fetchUserData = async (wallet) => {
     try {
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet, username: 'returning', referredBy: state.referredBy })
+        body: JSON.stringify({ walletAddress: wallet, username: 'returning' })
       });
       const data = await res.json();
       if (data && data.walletAddress) {
@@ -108,7 +137,7 @@ export default function Home() {
           ...s,
           connected: true,
           wallet: data.walletAddress,
-          twitter: data.username,
+          twitter: data.twitter || data.username,
           refCode: data.referralCode,
           spinsAvailable: data.spinsAvailable,
           tickets: data.tickets,
@@ -136,36 +165,63 @@ export default function Home() {
     } catch (e) { console.error(e); }
   };
 
-  const handleConnect = async () => {
+  // ===== Stepwise connect flow =====
+  const handleConnectWallet = async () => {
     if (!window.ethereum) {
-      toast('MetaMask not found');
+      toast('MetaMask not found. Please install it.');
       return;
     }
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send('eth_requestAccounts', []);
       const address = accounts[0];
-      
-      if (!usernameInput) {
-        toast('Please enter a username');
-        return;
-      }
+      setConnectedWallet(address);
+      setConnectStep(2); // move to username step
+    } catch (e) {
+      console.error(e);
+      toast('Wallet connection failed');
+    }
+  };
 
+  const handleSubmitUsername = () => {
+    if (!usernameInput.trim()) {
+      toast('Please enter a username');
+      return;
+    }
+    setConnectStep(3); // move to twitter step
+  };
+
+  const handleSubmitTwitter = async () => {
+    if (!twitterInput.trim()) {
+      toast('Please enter your Twitter handle');
+      return;
+    }
+
+    const handle = twitterInput.trim().replace(/^@?/, '@');
+
+    try {
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: address, username: usernameInput, referredBy: state.referredBy })
+        body: JSON.stringify({
+          walletAddress: connectedWallet,
+          username: usernameInput.trim(),
+          twitter: handle,
+          referredBy: state.referredBy,
+        })
       });
       const data = await res.json();
-      
+
       if (data.walletAddress) {
         localStorage.setItem('slobos_wallet', data.walletAddress);
-        fetchUserData(data.walletAddress);
+        await fetchUserData(data.walletAddress);
         setShowConnect(false);
+        setConnectStep(1);
+        toast('🎰 Welcome to SLOBOS! Complete tasks to earn spins.');
       }
     } catch (e) {
       console.error(e);
-      toast('Connection failed');
+      toast('Registration failed');
     }
   };
 
@@ -180,25 +236,17 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         toast(`Task completed! +${data.rewardSpins} spins`);
-        setCompletedTasks([...completedTasks, taskId]);
+        setCompletedTasks(prev => [...prev, taskId]);
         setState(s => ({ ...s, spinsAvailable: data.user.spinsAvailable }));
       } else {
-        toast(data.error);
+        toast(data.error || 'Task error');
       }
     } catch (e) {
       toast('Task error');
     }
   };
 
-  // Wheel Physics Logic
-  const POCKETS = 30;
-  const POCKET_DEG = 360 / POCKETS;
-  const POCKET_COLORS = Array.from({ length: POCKETS }, (_, i) => {
-    if (i === 0 || i === POCKETS / 2) return 'green';
-    return i % 2 ? 'red' : 'black';
-  });
-  const POCKET_FILL = { green: '#00c805', red: '#d92c2c', black: '#15171a' };
-
+  // ===== Wheel painting & animation =====
   const paintWheel = () => {
     if (!wheelRef.current) return;
     const stops = POCKET_COLORS
@@ -210,23 +258,23 @@ export default function Home() {
       `conic-gradient(from ${-half}deg, ${stops})`;
   };
 
-  const renderWheel = () => {
-    if (!wheelRef.current || !ballRef.current) return;
+  const renderWheel = useCallback(() => {
+    if (!wheelRef.current || !ballRef.current || !wheelStageRef.current) return;
     wheelRef.current.style.transform = `rotate(${wheelRot.current}deg)`;
-    const R = (wheelSceneRef.current?.clientWidth || 340) / 2;
+    // Ball radius is relative to the wheel-stage container (half its width)
+    const R = wheelStageRef.current.clientWidth / 2;
     ballRef.current.style.transform =
       `translate(-50%,-50%) rotate(${ballAngle.current}deg) translateY(${(-ballR.current * R).toFixed(2)}px)`;
-  };
+  }, []);
 
   const animateWheel = (result) => {
-    const turbo = state.turboFast;
-    const T = turbo ? 1600 : 4600;
+    const T = 4600;
     const pOf = (color) => POCKET_COLORS.flatMap((c, i) => (c === color ? [i] : []));
     const pList = pOf(result);
     const pocket = pList[Math.floor(Math.random() * pList.length)];
     const pocketOff = pocket * POCKET_DEG;
 
-    const base = wheelRot.current + (turbo ? 2 : 4) * 360;
+    const base = wheelRot.current + 4 * 360;
     const endRot = base + ((((-pocketOff - base) % 360) + 360) % 360);
     const W0 = wheelRot.current;
     const DW = endRot - W0;
@@ -236,10 +284,15 @@ export default function Home() {
     const tDrop = 0.55 * T;
     const catchTarget = W(tCatch) + pocketOff;
     const B0 = ballAngle.current;
-    const D = (((B0 - catchTarget) % 360) + 360) % 360 + (turbo ? 2 : 3) * 360;
+    const D = (((B0 - catchTarget) % 360) + 360) % 360 + 3 * 360;
     const B = (t) => B0 - D * easeOutQuart(Math.min(t / tCatch, 1));
 
-    const R_TRACK = 0.90, R_POCKET = 0.70;
+    // Ball radii — keep inside wheel bounds (0.42 = inner track, 0.36 = pocket)
+    const R_TRACK = 0.42;
+    const R_POCKET = 0.36;
+
+    // Start spin sound
+    soundRef.current?.startSpin();
 
     return new Promise((resolve) => {
       cancelAnimationFrame(rafId.current);
@@ -256,7 +309,7 @@ export default function Home() {
         } else {
           const s = (t - tCatch) / (T - tCatch);
           ballAngle.current = W(t) + pocketOff;
-          ballR.current = R_POCKET + Math.sin(s * Math.PI * 3) * (1 - s) * 0.03;
+          ballR.current = R_POCKET + Math.sin(s * Math.PI * 3) * (1 - s) * 0.015;
         }
 
         renderWheel();
@@ -265,6 +318,7 @@ export default function Home() {
           ballAngle.current = wheelRot.current + pocketOff;
           ballR.current = R_POCKET;
           renderWheel();
+          soundRef.current?.stopSpin();
           resolve();
         }
       };
@@ -272,6 +326,7 @@ export default function Home() {
     });
   };
 
+  // ===== Spin logic =====
   const doSpin = async () => {
     if (spinning || state.spinsAvailable <= 0 || !state.connected) return;
     setSpinning(true);
@@ -283,7 +338,7 @@ export default function Home() {
         body: JSON.stringify({ walletAddress: state.wallet })
       });
       const data = await res.json();
-      
+
       if (data.error) {
         toast(data.error);
         setSpinning(false);
@@ -294,46 +349,54 @@ export default function Home() {
 
       await animateWheel(data.result);
 
+      // Determine label
       let label = CONFIG.REWARDS[data.result].label;
       if (data.result === 'green') {
-         label = data.ticketsWon > 0 ? `+${data.ticketsWon} Raffle Tickets` : 'GTD Whitelist Spot 🎉';
+        label = data.ticketsWon > 0 ? `+${data.ticketsWon} Raffle Tickets` : 'GTD Whitelist Spot 🎉';
       } else if (data.result === 'black') {
-         label = '+1 Raffle Ticket';
+        label = '+1 Raffle Ticket';
       }
 
-      setState(s => ({ 
-        ...s, 
+      // Play result sound
+      if (data.result === 'red') {
+        soundRef.current?.lose();
+      } else {
+        soundRef.current?.win();
+      }
+
+      setState(s => ({
+        ...s,
         history: [...s.history, data.result],
         tickets: data.user.tickets,
         wonWL: data.user.wonWL
       }));
-      
+
       setResultData({ result: data.result, label });
-      
-      const flashText = data.result === 'green' ? (label.includes('Whitelist') ? 'WL SECURED' : `+${data.ticketsWon} TICKETS`) 
-                     : data.result === 'black' ? '+1 TICKET' : 'REKT';
-      setFlash({ text: flashText, color: data.result === 'green' ? 'var(--mint)' : data.result === 'black' ? 'var(--gold)' : 'var(--red)' });
-      
+
+      const flashText = data.result === 'green' ? (label.includes('Whitelist') ? 'WL SECURED' : `+${data.ticketsWon} TICKETS`)
+        : data.result === 'black' ? '+1 TICKET' : 'REKT';
+      setFlash({
+        text: flashText,
+        color: data.result === 'green' ? 'var(--mint)' : data.result === 'black' ? 'var(--gold)' : 'var(--red)'
+      });
       setTimeout(() => setFlash(null), 1800);
 
       setShowResult(true);
-
     } catch (e) {
       toast('Spin failed');
     }
-    
+
     setSpinning(false);
   };
 
-  const refLink = () => {
-    if (typeof window !== 'undefined') {
-      return `${window.location.origin}?ref=${state.refCode}`;
-    }
-    return '';
+  const shareToTwitter = (text) => {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  // ===== Render =====
   return (
     <>
+      {/* SVG defs */}
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
         <defs>
           <radialGradient id="headFill" cx="42%" cy="35%" r="75%">
@@ -381,6 +444,10 @@ export default function Home() {
             <circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/>
             <path d="M8.3 10.7 15.7 6.4 M8.3 13.3 15.7 17.6" stroke="currentColor" strokeWidth="1.8" fill="none"/>
           </symbol>
+          <symbol id="icoTrophy" viewBox="0 0 24 24">
+            <path d="M7 3h10v5a5 5 0 0 1-10 0V3Z M7 4H4v2a3 3 0 0 0 3 3 M17 4h3v2a3 3 0 0 1-3 3" fill="none" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M10 13h4v4h-4z M8 19h8v2H8z" fill="currentColor"/>
+          </symbol>
           <symbol id="betDiamond" viewBox="0 0 120 120">
             <g shapeRendering="crispEdges">
               <path fillRule="evenodd" style={{fill: 'var(--band,#333)'}} d="M60 8 L112 60 L60 112 L8 60 Z M60 32 L88 60 L60 88 L32 60 Z"/>
@@ -391,6 +458,7 @@ export default function Home() {
         </defs>
       </svg>
 
+      {/* ===== Top bar ===== */}
       <header className="topbar">
         <div className="tb-side">
           <button className="logo-box" title="SLOBOS" aria-label="SLOBOS home">
@@ -402,34 +470,46 @@ export default function Home() {
           <span className="brand-name">slobos</span>
         </div>
         <div className="tb-side tb-right">
-          {!state.connected && <button className="login-link" onClick={() => setShowConnect(true)}>LOGIN</button>}
-          <button className={`signup-btn ${state.connected ? 'connected' : ''}`} onClick={() => state.connected ? setShowAccount(true) : setShowConnect(true)}>
+          {/* Leaderboard — disabled, coming soon */}
+          <button className="gh-btn disabled-trophy" title="Leaderboard — Coming Soon" disabled>
+            <svg className="gh-ico"><use href="#icoTrophy"/></svg>
+          </button>
+          {!state.connected && <button className="login-link" onClick={() => { setConnectStep(1); setShowConnect(true); }}>LOGIN</button>}
+          <button className={`signup-btn ${state.connected ? 'connected' : ''}`} onClick={() => state.connected ? setShowAccount(true) : (setConnectStep(1), setShowConnect(true))}>
             {state.connected ? state.twitter : 'SIGNUP'}
           </button>
         </div>
       </header>
 
-      <div className={`page ${spinning ? 'spinning' : ''}`}>
+      {/* ===== Page ===== */}
+      <div className="page">
+        {/* Game head row */}
         <div className="game-head">
           <div className="gh-left">
             <span className="gh-cross">✛</span>
             <span className="gh-title">ROULETTE</span>
-            <span className="vr"></span>
-            <label className="fast-toggle" title="Fast spin">
-              <input type="checkbox" checked={state.turboFast} onChange={(e) => setState({ ...state, turboFast: e.target.checked })} /> <span>Turbo</span>
-            </label>
+            <button className="gh-btn sound-btn" title={soundMuted ? 'Unmute' : 'Mute'} onClick={() => {
+              const m = soundRef.current?.toggle();
+              setSoundMuted(m);
+            }}>
+              {soundMuted ? '🔇' : '🔊'}
+            </button>
           </div>
           <div className="gh-right">
             <button className="gh-btn" title="Share" onClick={() => {
-              if (!state.connected) setShowConnect(true);
-              else window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Spinning the @SLOBOS wheel for a GTD whitelist spot 👇\n${refLink()}`)}`, '_blank');
+              if (!state.connected) { setConnectStep(1); setShowConnect(true); }
+              else shareToTwitter(`Spinning the @SLOBOS wheel for a GTD whitelist spot 👇\n${refLink()}`);
             }}>
               <svg className="gh-ico" fill="currentColor"><use href="#icoShare"/></svg>
             </button>
+            <span className="vr"></span>
+            <button className="gh-btn" title="How it works" onClick={() => setShowInfo(true)}>ⓘ</button>
           </div>
         </div>
 
+        {/* ===== Main game ===== */}
         <main className="stage">
+          {/* Left panel */}
           <section className="panel">
             <div className="bet-cards">
               {['red', 'black', 'green'].map(color => (
@@ -438,7 +518,9 @@ export default function Home() {
                     <svg className="diamond" aria-hidden="true"><use href="#betDiamond"/></svg>
                     <span className="bc-name">{color.toUpperCase()}</span>
                   </span>
-                  <span className="bc-payout">{CONFIG.REWARDS[color].tickets} Tickets · {Math.round(CONFIG.ODDS[color]*100)}%</span>
+                  <span className="bc-payout">
+                    {color === 'red' ? 'Nothing · 45%' : color === 'black' ? '+1 Ticket · 45%' : 'GTD WL · ~8%'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -451,7 +533,7 @@ export default function Home() {
               <span className="coin">◈</span>
               <span className="amount-val">1 <em>spin</em></span>
               <span className="amount-btns">
-                <button className="q-btn" onClick={() => setShowTasks(true)}>TASKS</button>
+                <button className="q-btn" onClick={() => { if (!state.connected) { setConnectStep(1); setShowConnect(true); } else setShowTasks(true); }}>TASKS</button>
               </span>
             </div>
 
@@ -462,7 +544,7 @@ export default function Home() {
               <div className="stat-row">
                 <span>Streak: <b>{state.streak}</b>d</span>
                 <span className="streak-track">
-                  {Array.from({length:7}).map((_, i) => (
+                  {Array.from({length: 7}).map((_, i) => (
                     <i key={i} className={i < state.streak % 7 || (state.streak >= 7 && state.streak % 7 === 0) ? 'on' : ''}></i>
                   ))}
                 </span>
@@ -472,12 +554,16 @@ export default function Home() {
             <div className="panel-spacer"></div>
 
             <div className="spin-actions">
-              <button 
-                className={`spin-btn ${spinning ? 'spinning' : ''}`} 
-                disabled={spinning || state.spinsAvailable === 0 || loading} 
-                onClick={doSpin}
+              <button
+                className={`spin-btn ${spinning ? 'spinning' : ''}`}
+                disabled={spinning || loading}
+                onClick={() => {
+                  if (!state.connected) { setConnectStep(1); setShowConnect(true); return; }
+                  if (state.spinsAvailable <= 0) { setShowTasks(true); return; }
+                  doSpin();
+                }}
               >
-                {!state.connected ? 'CONNECT TO DEGEN' : (state.spinsAvailable === 0 ? 'OUT OF SPINS' : 'RISKIIIT!')}
+                {!state.connected ? 'CONNECT TO DEGEN' : (state.spinsAvailable === 0 ? 'GET SPINS' : 'RISKIIIT!')}
               </button>
             </div>
             <p className="disclaimer">
@@ -485,15 +571,26 @@ export default function Home() {
             </p>
           </section>
 
+          {/* Right: Wheel */}
           <section className="wheel-card">
-            <div className="wheel-scene" ref={wheelSceneRef}>
+            {/* Share button above the wheel scene */}
+            <div className="wheel-share-bar">
+              <button className="share-bar-btn" onClick={() => {
+                if (!state.connected) { setConnectStep(1); setShowConnect(true); }
+                else shareToTwitter(`Spinning the @SLOBOS wheel for a GTD whitelist spot 👇\n${refLink()}`);
+              }}>
+                <svg className="gh-ico" fill="currentColor"><use href="#icoShare"/></svg>
+                <span>Share &amp; Invite</span>
+              </button>
+            </div>
+            <div className={`wheel-scene ${spinning ? 'is-spinning' : ''}`}>
               <div className="glow"></div>
               <div className="gambler" aria-hidden="true">
                 <svg className="gambler-head"><use href="#sloboHead"/></svg>
               </div>
               <svg className="paw paw-l" aria-hidden="true"><use href="#sloboPaw"/></svg>
               <svg className="paw paw-r" aria-hidden="true"><use href="#sloboPaw"/></svg>
-              <div className="wheel-stage">
+              <div className="wheel-stage" ref={wheelStageRef}>
                 <div className="pointer"></div>
                 <div className="wheel" ref={wheelRef}></div>
                 <div className="wheel-hub"></div>
@@ -501,7 +598,7 @@ export default function Home() {
               </div>
               <div className="scanlines"></div>
               {flash && (
-                <div className={`result-flash show`} style={{color: flash.color}}>{flash.text}</div>
+                <div className="result-flash show" style={{color: flash.color}}>{flash.text}</div>
               )}
             </div>
             <div className="wheel-foot">
@@ -511,6 +608,7 @@ export default function Home() {
           </section>
         </main>
 
+        {/* History */}
         <div className="history">
           {state.history.slice(-12).reverse().map((r, i) => (
             <span key={i} className={`chip ${r}`}>
@@ -519,12 +617,15 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Promo */}
         <section className="promo">
           <img src="/assets/banner.gif" alt="SLOBOS × Robinhood Chain" />
         </section>
       </div>
 
-      {/* Connect Modal */}
+      {/* ===== MODALS ===== */}
+
+      {/* Stepwise Connect Modal */}
       <Modal isOpen={showConnect} onClose={() => setShowConnect(false)}>
         <div className="pfp-strip" aria-hidden="true">
           <img className="avatar" src={PFPS[0]} alt="" />
@@ -532,12 +633,61 @@ export default function Home() {
           <img className="avatar" src={PFPS[2]} alt="" />
           <svg className="you-mark" aria-hidden="true"><use href="#sloboHead"/></svg>
         </div>
-        <h2>Signup / Login</h2>
-        <p className="sub">Join the slobos. 1 wallet = 1 entry.</p>
-        <label>X / Twitter handle / Username</label>
-        <input type="text" placeholder="@yourhandle" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} />
-        <button className="primary" onClick={handleConnect}>Sign &amp; Connect MetaMask</button>
-        <button className="secondary" onClick={() => setShowConnect(false)}>Cancel</button>
+
+        {connectStep === 1 && (
+          <>
+            <h2>Step 1 · Connect Wallet</h2>
+            <p className="sub">Connect your MetaMask wallet to get started. 1 wallet = 1 entry.</p>
+            <div className="gate-step">
+              <span className="dot">1</span>
+              <span style={{flex:1}}>Connect MetaMask</span>
+            </div>
+            <button className="primary" onClick={handleConnectWallet}>Connect MetaMask</button>
+            <button className="secondary" onClick={() => setShowConnect(false)}>Cancel</button>
+          </>
+        )}
+
+        {connectStep === 2 && (
+          <>
+            <h2>Step 2 · Username</h2>
+            <p className="sub">Choose a username for the leaderboard.</p>
+            <div className="gate-step done">
+              <span className="dot">✓</span>
+              <span style={{flex:1}}>Wallet: {connectedWallet?.slice(0,6)}...{connectedWallet?.slice(-4)}</span>
+            </div>
+            <div className="gate-step">
+              <span className="dot">2</span>
+              <span style={{flex:1}}>Username</span>
+            </div>
+            <label>Username</label>
+            <input type="text" placeholder="your_name" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmitUsername()} />
+            <button className="primary" onClick={handleSubmitUsername}>Continue</button>
+            <button className="secondary" onClick={() => setConnectStep(1)}>Back</button>
+          </>
+        )}
+
+        {connectStep === 3 && (
+          <>
+            <h2>Step 3 · Twitter / X</h2>
+            <p className="sub">Link your X account to unlock spins.</p>
+            <div className="gate-step done">
+              <span className="dot">✓</span>
+              <span style={{flex:1}}>Wallet connected</span>
+            </div>
+            <div className="gate-step done">
+              <span className="dot">✓</span>
+              <span style={{flex:1}}>Username: {usernameInput}</span>
+            </div>
+            <div className="gate-step">
+              <span className="dot">3</span>
+              <span style={{flex:1}}>Twitter handle</span>
+            </div>
+            <label>X / Twitter Handle</label>
+            <input type="text" placeholder="@yourhandle" value={twitterInput} onChange={e => setTwitterInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmitTwitter()} />
+            <button className="primary" onClick={handleSubmitTwitter}>Complete Signup</button>
+            <button className="secondary" onClick={() => setConnectStep(2)}>Back</button>
+          </>
+        )}
       </Modal>
 
       {/* Result Modal */}
@@ -545,35 +695,35 @@ export default function Home() {
         <div className="wl-win">
           <div className="big">{resultData.result === 'green' ? '🟢' : resultData.result === 'black' ? '🎟️' : '🔴'}</div>
           <h2>{resultData.label}</h2>
-          <p className="sub">Share your result and pull friends into the wheel.</p>
+          <p className="sub">{resultData.result !== 'red' ? 'Nice. Share your result — turn it into distribution.' : 'No luck. Share it anyway and pull friends into the wheel.'}</p>
           <p className="sub" style={{marginBottom: '8px'}}>Your raffle tickets: <b style={{color:'var(--txt)'}}>{state.tickets}</b> · WL: <b style={{color:'var(--mint)'}}>{state.wonWL ? 'SECURED' : 'not yet'}</b></p>
-          <a className="primary" style={{display:'block', textDecoration:'none', boxSizing:'border-box'}} target="_blank"
+          <a className="primary" style={{display:'block', textDecoration:'none', boxSizing:'border-box', textAlign:'center'}} target="_blank"
              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I just spun ${resultData.result.toUpperCase()} on the @SLOBOS wheel and got: ${resultData.label}. Spin for a GTD whitelist spot 👇\n${refLink()}`)}`}>
-             Share result + referral link
+            Share result on X
           </a>
           <div className="referral-box">
             <input type="text" readOnly value={refLink()} />
             <button className="secondary" style={{margin:0}} onClick={() => { navigator.clipboard?.writeText(refLink()); toast('Link copied'); }}>Copy</button>
           </div>
-          <button className="secondary" onClick={() => setShowResult(false)}>Done</button>
+          <button className="secondary" onClick={() => setShowResult(false)}>{state.spinsAvailable > 0 ? 'Spin again' : 'Done'}</button>
         </div>
       </Modal>
 
       {/* Tasks Modal */}
       <Modal isOpen={showTasks} onClose={() => setShowTasks(false)}>
-        <h2>Available Tasks</h2>
-        <p className="sub">Complete tasks to earn more spins.</p>
+        <h2>🎯 Available Tasks</h2>
+        <p className="sub">Complete tasks to earn more spins. Every task is free!</p>
         {tasks.map(t => (
-          <div key={t.taskId} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', borderBottom:'1px solid var(--line)'}}>
-            <div>
-              <div style={{fontWeight: 700}}>{t.title}</div>
-              <div style={{color:'var(--muted)', fontSize:'12px'}}>{t.description}</div>
+          <div key={t.taskId} className="task-row">
+            <div className="task-info">
+              <div className="task-title">{t.title}</div>
+              <div className="task-desc">{t.description}</div>
             </div>
             {completedTasks.includes(t.taskId) ? (
-              <span style={{color:'var(--mint)', fontWeight: 700}}>✓ DONE</span>
+              <span className="task-done">✓ DONE</span>
             ) : (
-              <button className="secondary" style={{width:'auto', margin:0}} onClick={() => {
-                if(t.actionLink) window.open(t.actionLink, '_blank');
+              <button className="task-btn" onClick={() => {
+                if (t.actionLink) window.open(t.actionLink, '_blank');
                 completeTask(t.taskId);
               }}>
                 +{t.rewardSpins} SPINS
@@ -581,13 +731,29 @@ export default function Home() {
             )}
           </div>
         ))}
-        {tasks.length === 0 && <p style={{color:'var(--faint)'}}>No tasks available right now.</p>}
+        {tasks.length === 0 && <p style={{color:'var(--faint)', padding:'20px 0'}}>No tasks available right now. Check back later!</p>}
         <button className="secondary" style={{marginTop:'16px'}} onClick={() => setShowTasks(false)}>Close</button>
+      </Modal>
+
+      {/* Info / How It Works */}
+      <Modal isOpen={showInfo} onClose={() => setShowInfo(false)}>
+        <h2>How it works</h2>
+        <p className="sub">Spin the 3-color wheel. Refer friends for bonus spins. Climb the leaderboard.</p>
+        <div className="lb-row"><span className="who">🔴 Red (45%)</span><span>Nothing — come back tomorrow</span></div>
+        <div className="lb-row"><span className="who">⚫ Black (45%)</span><span>+1 raffle ticket</span></div>
+        <div className="lb-row"><span className="who">🟢 Green (~8%)</span><span>GTD whitelist spot</span></div>
+        <hr style={{border:'none', borderTop:'1px solid var(--line)', margin:'14px 0'}} />
+        <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Referral:</b> New wallet spins via your code → you get +1 spin + 1 ticket.</p>
+        <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Streaks:</b> 3-day streak = +1 bonus spin. 7-day = tier upgrade.</p>
+        <p className="sub"><b style={{color:'var(--txt)'}}>Tasks:</b> Complete free tasks to earn more spins. No purchase required.</p>
+        <button className="secondary" style={{marginTop:'16px'}} onClick={() => setShowInfo(false)}>Got it</button>
       </Modal>
 
       {/* Account Info */}
       <Modal isOpen={showAccount} onClose={() => setShowAccount(false)}>
-        <h2 style={{display:'flex',alignItems:'center',gap:'10px'}}><svg className="you-mark" aria-hidden="true"><use href="#sloboHead"/></svg> {state.twitter}</h2>
+        <h2 style={{display:'flex', alignItems:'center', gap:'10px'}}>
+          <svg className="you-mark" aria-hidden="true"><use href="#sloboHead"/></svg> {state.twitter}
+        </h2>
         <p className="sub">{state.wallet}</p>
         <div className="lb-row"><span className="who">Raffle tickets</span><span className="refs">{state.tickets}</span></div>
         <div className="lb-row"><span className="who">Whitelist</span><span className="refs">{state.wonWL ? 'SECURED 🎉' : '—'}</span></div>
@@ -601,6 +767,7 @@ export default function Home() {
         <button className="secondary" onClick={() => setShowAccount(false)}>Close</button>
       </Modal>
 
+      {/* Toast */}
       {toastMsg && <div className="toast">{toastMsg}</div>}
     </>
   );

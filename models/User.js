@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const UserSchema = new mongoose.Schema({
   walletAddress: { type: String, required: true, unique: true },
   username: { type: String, required: true },
+  twitter: { type: String, default: null },
   referralCode: { type: String, required: true, unique: true },
   referredBy: { type: String, default: null },
   tickets: { type: Number, default: 0 },
