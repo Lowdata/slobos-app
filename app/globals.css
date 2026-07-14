@@ -194,7 +194,7 @@ button { font-family: var(--font); cursor: pointer; }
 
 .panel-spacer { flex: 1; }
 
-.spin-actions { display: flex; gap: 10px; }
+.spin-actions { display: flex; flex-direction: column; gap: 16px; }
 .spin-btn {
   flex: 1; border: none; border-radius: var(--r-el); padding: 15px;
   background: linear-gradient(180deg, #9dffbc, var(--mint));
