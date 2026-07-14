@@ -9,6 +9,7 @@ export default function Modal({ isOpen, onClose, children }) {
     <div className="modal-root">
       <div className="modal-backdrop" onClick={onClose} data-close></div>
       <div className="modal">
+        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         {children}
       </div>
     </div>

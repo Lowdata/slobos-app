@@ -8,6 +8,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "ethers": "^6.17.0",
     "mongoose": "^9.7.4",
     "next": "16.2.10",

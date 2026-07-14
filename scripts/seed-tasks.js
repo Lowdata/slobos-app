@@ -31,40 +31,24 @@ const likeIntent = (tweetId) =>
 const TASKS = [
   {
     taskId: 'follow_twitter',
-    title: 'Follow @SLOBOS on X',
+    title: 'Follow @Slobos_ on X',
     description: 'Follow the official SLOBOS account on X',
-    rewardSpins: 3,
-    actionLink: followIntent('SLOBOS')
+    rewardSpins: 1,
+    actionLink: followIntent('Slobos_')
   },
   {
-    taskId: 'rt_pinned',
-    title: 'Like and RT pinned tweet',
-    description: 'Like and RT the pinned launch tweet to spread the word',
-    rewardSpins: 2,
-    actionLink: 'https://twitter.com/SLOBOS' // Replace with actual tweet URL when pinned tweet is live
+    taskId: 'rt_tweet',
+    title: 'Retweet latest tweet',
+    description: 'Retweet the launch tweet to spread the word',
+    rewardSpins: 1,
+    actionLink: retweetIntent('1753580011703967886')
   },
   {
     taskId: 'like_tweet',
     title: 'Like latest tweet',
-    description: 'Like the most recent tweet from @SLOBOS',
+    description: 'Like the most recent tweet from @Slobos_',
     rewardSpins: 1,
-    actionLink: 'https://twitter.com/SLOBOS' // Replace with actual tweet URL
-  },
-  {
-    taskId: 'invite_friend',
-    title: 'Invite a friend',
-    description: 'Share your referral link and get a friend to sign up',
-    rewardSpins: 2,
-    actionLink: null // handled by the referral system
-  },
-  {
-    taskId: 'tweet_referral',
-    title: 'Share your referral link',
-    description: 'Tweet your personal referral link to earn bonus spins',
-    rewardSpins: 2,
-    actionLink: tweetIntent(
-      `Spinning the @SLOBOS wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or raffle tickets. Free to play, zero catch.\n\nUse my link to get started 👇`
-    )
+    actionLink: likeIntent('1753580011703967886')
   }
 ];
 

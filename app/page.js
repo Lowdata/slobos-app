@@ -9,7 +9,7 @@ const CONFIG = {
   ODDS: { red: 0.45, black: 0.45, green: 0.10 },
   REWARDS: {
     red: { label: '— Nothing —', tickets: 0 },
-    black: { label: '+1 Raffle Ticket', tickets: 1 },
+    black: { label: '+1 FCFS Spot', tickets: 1 },
     green: { label: 'GTD Whitelist Spot', tickets: 0 },
   }
 };
@@ -385,7 +385,7 @@ export default function Home() {
       // Determine label
       let label = CONFIG.REWARDS[data.result].label;
       if (data.result === 'green') {
-        label = data.ticketsWon > 0 ? `+${data.ticketsWon} Raffle Tickets` : 'GTD Whitelist Spot 🎉';
+        label = data.ticketsWon > 0 ? `+${data.ticketsWon} FCFS Spot` : 'GTD Whitelist Spot 🎉';
       } else if (data.result === 'black') {
         label = '+1 Raffle Ticket';
       }
@@ -406,7 +406,7 @@ export default function Home() {
 
       setResultData({ result: data.result, label });
 
-      const flashText = data.result === 'green' ? (label.includes('Whitelist') ? 'WL SECURED' : `+${data.ticketsWon} TICKETS`)
+      const flashText = data.result === 'green' ? (label.includes('Whitelist') ? 'WL SECURED' : `+${data.ticketsWon} FCFS`)
         : data.result === 'black' ? '+1 TICKET' : 'REKT';
       setFlash({
         text: flashText,
@@ -730,10 +730,10 @@ export default function Home() {
         <div className="wl-win">
           <div className="big">{resultData.result === 'green' ? '🟢' : resultData.result === 'black' ? '🎟️' : '🔴'}</div>
           <h2>{resultData.label}</h2>
-          <p className="sub">{resultData.result !== 'red' ? 'Nice. Share your result — turn it into distribution.' : 'No luck. Share it anyway and pull friends into the wheel.'}</p>
-          <p className="sub" style={{marginBottom: '8px'}}>Your raffle tickets: <b style={{color:'var(--txt)'}}>{state.tickets}</b> · WL: <b style={{color:'var(--mint)'}}>{state.wonWL ? 'SECURED' : 'not yet'}</b></p>
+          <p className="sub">{resultData.result !== 'red' ? 'Nice! Invite friends via your referral link to earn +1 spin & +1 FCFS spot per friend.' : 'No luck this time. Invite friends via your referral link to earn +1 spin & +1 FCFS spot per friend!'}</p>
+          <p className="sub" style={{marginBottom: '8px'}}>Your FCFS spots: <b style={{color:'var(--txt)'}}>{state.tickets}</b> · WL: <b style={{color:'var(--mint)'}}>{state.wonWL ? 'SECURED' : 'not yet'}</b></p>
           <a className="primary" style={{display:'block', textDecoration:'none', boxSizing:'border-box', textAlign:'center'}} target="_blank"
-             href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I just spun ${resultData.result.toUpperCase()} on the @SLOBOS wheel and got: ${resultData.label}. Spin for a GTD whitelist spot 👇\n${refLink()}`)}`}>
+             href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I just spun ${resultData.result.toUpperCase()} on the @Slobos_ wheel and got: ${resultData.label}. Spin for a GTD whitelist spot 👇\n${refLink()}`)}`}>
             Share result on X
           </a>
           <div className="referral-box">
@@ -756,11 +756,8 @@ export default function Home() {
         )}
 
         <p className="sub">{showOnboardingTasks ? 'Complete these 3 tasks to earn your first spins.' : 'Complete tasks to earn more spins. Every task is free!'}</p>
-        {tasks.filter(t => showOnboardingTasks ? ['follow_twitter', 'rt_pinned', 'tweet_referral'].includes(t.taskId) : true).map(t => {
+        {tasks.filter(t => showOnboardingTasks ? ['follow_twitter', 'like_tweet', 'rt_tweet'].includes(t.taskId) : true).map(t => {
           let dynamicActionLink = t.actionLink;
-          if (t.taskId === 'tweet_referral') {
-            dynamicActionLink = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Spinning the @SLOBOS wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or raffle tickets. Free to play, zero catch.\n\nUse my link to get started 👇\n${refLink()}`)}`;
-          }
           return (
             <div key={t.taskId} className="task-row">
               <div className="task-info">
@@ -780,20 +777,17 @@ export default function Home() {
           );
         })}
         {tasks.length === 0 && <p style={{color:'var(--faint)', padding:'20px 0'}}>No tasks available right now. Check back later!</p>}
-        <button className="secondary" style={{marginTop:'16px'}} onClick={() => { setShowTasks(false); setShowOnboardingTasks(false); }}>
-          {showOnboardingTasks ? 'I will do it later' : 'Close'}
-        </button>
       </Modal>
 
       {/* Info / How It Works */}
       <Modal isOpen={showInfo} onClose={() => setShowInfo(false)}>
         <h2>How it works</h2>
         <p className="sub">Spin the 3-color wheel. Refer friends for bonus spins. Climb the leaderboard.</p>
-        <div className="lb-row"><span className="who">🔴 Red (45%)</span><span>Nothing — come back tomorrow</span></div>
-        <div className="lb-row"><span className="who">⚫ Black (45%)</span><span>+1 raffle ticket</span></div>
         <div className="lb-row"><span className="who">🟢 Green (~8%)</span><span>GTD whitelist spot</span></div>
+        <div className="lb-row"><span className="who">⚫ Black (45%)</span><span>+1 FCFS spot</span></div>
+        <div className="lb-row"><span className="who">🔴 Red (45%)</span><span>Nothing</span></div>
         <hr style={{border:'none', borderTop:'1px solid var(--line)', margin:'14px 0'}} />
-        <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Referral:</b> New wallet spins via your code → you get +1 spin + 1 ticket.</p>
+        <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Referral:</b> New wallet spins via your code → you get +1 spin + 1 FCFS spot.</p>
         <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Streaks:</b> 3-day streak = +1 bonus spin. 7-day = tier upgrade.</p>
         <p className="sub"><b style={{color:'var(--txt)'}}>Tasks:</b> Complete free tasks to earn more spins. No purchase required.</p>
         <button className="secondary" style={{marginTop:'16px'}} onClick={() => setShowInfo(false)}>Got it</button>

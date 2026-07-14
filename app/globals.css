@@ -378,6 +378,15 @@ button { font-family: var(--font); cursor: pointer; }
   background: var(--box); border: 1px solid var(--line-2); border-radius: var(--r-box);
   padding: 26px; box-shadow: 0 30px 80px rgba(0,0,0,.8);
 }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none; color: var(--muted);
+  font-size: 16px; padding: 4px; border-radius: 4px;
+  cursor: pointer; transition: 0.15s;
+}
+.modal-close:hover {
+  color: var(--mint); background: rgba(119,255,164,0.1);
+}
 .modal h2 { font-size: 17px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 .modal p.sub { color: var(--muted); font-size: 12.5px; margin-bottom: 18px; line-height: 1.6; }
 .modal label {
