@@ -678,7 +678,7 @@ export default function Home() {
             <p className="sub">Connect your MetaMask wallet to get started. 1 wallet = 1 entry.</p>
             <div className="gate-step">
               <span className="dot">1</span>
-              <span style={{flex:1}}>Connect MetaMask</span>
+              <span style={{flex:1}}>Connect Wallet</span>
             </div>
             <button className="primary" onClick={handleConnectWallet}>Connect MetaMask</button>
             <button className="secondary" onClick={() => setShowConnect(false)}>Cancel</button>
