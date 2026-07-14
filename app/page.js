@@ -553,7 +553,7 @@ export default function Home() {
           <section className="panel">
             <div className="bet-cards">
               {['red', 'black', 'green'].map(color => (
-                <button key={color} className={`bet-card ${color} ${selectedColor === color ? 'selected' : ''}`} onClick={() => setSelectedColor(color)}>
+                <div key={color} className={`bet-card ${color}`}>
                   <span className="diamond-wrap">
                     <svg className="diamond" aria-hidden="true"><use href="#betDiamond"/></svg>
                     <span className="bc-name">{color.toUpperCase()}</span>
@@ -561,7 +561,7 @@ export default function Home() {
                   <span className="bc-payout">
                     {color === 'red' ? 'Nothing · 45%' : color === 'black' ? 'FCFS · 45%' : 'Sloblist · 10%'}
                   </span>
-                </button>
+                </div>
               ))}
             </div>
 
