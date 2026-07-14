@@ -508,9 +508,6 @@ export default function Home() {
             <svg className="gh-ico"><use href="#icoTrophy"/></svg>
             <span style={{ fontSize: '13px' }}>Leaderboard</span>
           </button>
-          {!state.connected ? (
-            <button className="login-link" onClick={() => { setConnectStep(1); setShowConnect(true); }}>LOGIN</button>
-          ) : null}
           <button className={`signup-btn ${state.connected ? 'connected' : ''}`} onClick={() => state.connected ? setShowAccount(true) : (setConnectStep(1), setShowConnect(true))}>
             {state.connected ? (
               <>
@@ -519,7 +516,7 @@ export default function Home() {
                 </svg>
                 <span>@{state.twitter}</span>
               </>
-            ) : 'SIGNUP'}
+            ) : 'CONNECT WALLET'}
           </button>
         </div>
       </header>
@@ -598,6 +595,17 @@ export default function Home() {
               <button className={`spin-btn ${spinning ? 'spinning' : ''}`} onClick={() => doSpin()} disabled={spinning || !state.connected || state.spinsAvailable < 1}>
                 {spinning ? 'SPINNING...' : 'SPIN IT'}
               </button>
+              {state.connected && !spinning && state.spinsAvailable === 0 && (
+                <div style={{ marginTop: '16px', background: 'rgba(119,255,164,0.08)', padding: '16px', borderRadius: 'var(--r-box)', border: '1px solid rgba(119,255,164,0.25)', textAlign: 'center' }}>
+                  <p style={{ margin: '0 0 8px', fontSize: '14.5px', color: 'var(--mint)', fontWeight: '700' }}>Out of spins!</p>
+                  <p style={{ margin: '0 0 14px', fontSize: '12.5px', color: 'var(--muted)', lineHeight: '1.5' }}>Share your link with friends. You get <b style={{color:'var(--mint)'}}>+1 spin & +1 FCFS spot</b> for every new wallet that spins.</p>
+                  <button className="primary" onClick={() => {
+                    shareToTwitter(`Spinning the @Slobos_ wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or FCFS spots. Free to play, zero catch.\n\nUse my link to get started 👇\n${refLink()}`);
+                  }}>
+                    Invite Friends on X
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -740,7 +748,7 @@ export default function Home() {
             <input type="text" readOnly value={refLink()} />
             <button className="secondary" style={{margin:0}} onClick={() => { navigator.clipboard?.writeText(refLink()); toast('Link copied'); }}>Copy</button>
           </div>
-          <button className="secondary" onClick={() => setShowResult(false)}>{state.spinsAvailable > 0 ? 'Spin again' : 'Done'}</button>
+          <button className="secondary" onClick={() => setShowResult(false)}>{state.spinsAvailable > 0 ? 'Spin again' : 'Invite friends for more spins'}</button>
         </div>
       </Modal>
 
