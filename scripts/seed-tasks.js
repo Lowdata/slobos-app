@@ -37,18 +37,25 @@ const TASKS = [
     actionLink: followIntent('Slobos_')
   },
   {
-    taskId: 'rt_tweet',
-    title: 'Retweet latest tweet',
-    description: 'Retweet the launch tweet to spread the word',
-    rewardSpins: 1,
-    actionLink: retweetIntent('1753580011703967886')
-  },
-  {
     taskId: 'like_tweet',
     title: 'Like latest tweet',
     description: 'Like the most recent tweet from @Slobos_',
     rewardSpins: 1,
-    actionLink: likeIntent('1753580011703967886')
+    actionLink: likeIntent('2076318920189870375')
+  },
+  {
+    taskId: 'rt_tweet',
+    title: 'Retweet latest tweet',
+    description: 'Retweet the latest tweet to spread the word',
+    rewardSpins: 1,
+    actionLink: retweetIntent('2076318920189870375')
+  },
+  {
+    taskId: 'share_referral',
+    title: 'Share your referral link',
+    description: 'Post your referral link on X to invite friends',
+    rewardSpins: 1,
+    actionLink: 'share_referral' // Special case to be handled by the frontend
   }
 ];
 
@@ -56,12 +63,20 @@ async function seed() {
   await mongoose.connect(MONGODB_URI);
   console.log('Connected to MongoDB');
 
+  // Clear existing tasks and user progress
+  await Task.deleteMany({});
+  console.log('Cleared existing Tasks');
+  
+  const UserTask = mongoose.models.UserTask || mongoose.model('UserTask', new mongoose.Schema({
+    walletAddress: { type: String, required: true },
+    taskId: { type: String, required: true },
+    completedAt: { type: Date, default: Date.now }
+  }));
+  await UserTask.deleteMany({});
+  console.log('Cleared existing UserTasks');
+
   for (const task of TASKS) {
-    await Task.findOneAndUpdate(
-      { taskId: task.taskId },
-      task,
-      { upsert: true, new: true }
-    );
+    await Task.create(task);
     console.log(`  ✓ ${task.taskId}`);
   }
 
