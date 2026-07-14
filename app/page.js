@@ -559,7 +559,7 @@ export default function Home() {
                     <span className="bc-name">{color.toUpperCase()}</span>
                   </span>
                   <span className="bc-payout">
-                    {color === 'red' ? 'Nothing · 45%' : color === 'black' ? 'FCFS · 45%' : 'Sloblist · 10%'}
+                    {color === 'red' ? 'Nothing' : color === 'black' ? 'FCFS Spot' : 'Sloblist'}
                   </span>
                 </div>
               ))}
@@ -598,7 +598,7 @@ export default function Home() {
               {state.connected && !spinning && state.spinsAvailable === 0 && (
                 <div style={{ marginTop: '16px', background: 'rgba(119,255,164,0.08)', padding: '16px', borderRadius: 'var(--r-box)', border: '1px solid rgba(119,255,164,0.25)', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 8px', fontSize: '14.5px', color: 'var(--mint)', fontWeight: '700' }}>Out of spins!</p>
-                  <p style={{ margin: '0 0 14px', fontSize: '12.5px', color: 'var(--muted)', lineHeight: '1.5' }}>Share your link with friends. You get <b style={{color:'var(--mint)'}}>+1 spin & +1 FCFS spot</b> for every new wallet that spins.</p>
+                  <p style={{ margin: '0 0 14px', fontSize: '12.5px', color: 'var(--muted)', lineHeight: '1.5' }}>Share your link with friends. You get <b style={{color:'var(--mint)'}}>+1 spin</b> for every new wallet that spins.</p>
                   <button className="primary" onClick={() => {
                     shareToTwitter(`Spinning the @Slobos_ wheel for a GTD whitelist spot 🎰\n\nEvery spin = a chance at a WL or FCFS spots. Free to play, zero catch.\n\nUse my link to get started 👇\n${refLink()}`);
                   }}>
@@ -738,7 +738,7 @@ export default function Home() {
         <div className="wl-win">
           <div className="big">{resultData.result === 'green' ? '🟢' : resultData.result === 'black' ? '🎟️' : '🔴'}</div>
           <h2>{resultData.label}</h2>
-          <p className="sub">{resultData.result !== 'red' ? 'Nice! Invite friends via your referral link to earn +1 spin & +1 FCFS spot per friend.' : 'No luck this time. Invite friends via your referral link to earn +1 spin & +1 FCFS spot per friend!'}</p>
+          <p className="sub">{resultData.result !== 'red' ? 'Nice! Invite friends via your referral link to earn +1 spin.' : 'No luck this time. Invite friends via your referral link to earn +1 spin!.'}</p>
           <p className="sub" style={{marginBottom: '8px'}}>Your FCFS spots: <b style={{color:'var(--txt)'}}>{state.tickets}</b> · WL: <b style={{color:'var(--mint)'}}>{state.wonWL ? 'SECURED' : 'not yet'}</b></p>
           <a className="primary" style={{display:'block', textDecoration:'none', boxSizing:'border-box', textAlign:'center'}} target="_blank"
              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I just spun ${resultData.result.toUpperCase()} on the @Slobos_ wheel and got: ${resultData.label}. Spin for a GTD whitelist spot 👇\n${refLink()}`)}`}>
@@ -791,9 +791,9 @@ export default function Home() {
       <Modal isOpen={showInfo} onClose={() => setShowInfo(false)}>
         <h2>How it works</h2>
         <p className="sub">Spin the 3-color wheel. Refer friends for bonus spins. Climb the leaderboard.</p>
-        <div className="lb-row"><span className="who">🟢 Green (~8%)</span><span>GTD whitelist spot</span></div>
-        <div className="lb-row"><span className="who">⚫ Black (45%)</span><span>+1 FCFS spot</span></div>
-        <div className="lb-row"><span className="who">🔴 Red (45%)</span><span>Nothing</span></div>
+        <div className="lb-row"><span className="who">🟢 Green</span><span>GTD whitelist spot</span></div>
+        <div className="lb-row"><span className="who">⚫ Black</span><span>+1 FCFS spot</span></div>
+        <div className="lb-row"><span className="who">🔴 Red</span><span>Nothing</span></div>
         <hr style={{border:'none', borderTop:'1px solid var(--line)', margin:'14px 0'}} />
         <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Referral:</b> New wallet spins via your code → you get +1 spin + 1 FCFS spot.</p>
         <p className="sub" style={{marginBottom:'10px'}}><b style={{color:'var(--txt)'}}>Streaks:</b> 3-day streak = +1 bonus spin. 7-day = tier upgrade.</p>
