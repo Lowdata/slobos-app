@@ -649,7 +649,7 @@ export default function Home() {
 
         {/* Promo */}
         <section className="promo">
-          <img src="/assets/banner.gif" alt="SLOBOS × Robinhood Chain" />
+          <video src="/assets/banner.mp4" autoPlay loop muted playsInline style={{ width: '100%', display: 'block' }} aria-label="SLOBOS × Robinhood Chain" />
         </section>
       </div>
 

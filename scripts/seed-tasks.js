@@ -51,31 +51,6 @@ const TASKS = [
     actionLink: 'https://twitter.com/SLOBOS' // Replace with actual tweet URL
   },
   {
-    taskId: 'quote_tweet',
-    title: 'Quote tweet about SLOBOS',
-    description: 'Share your take on SLOBOS with your followers',
-    rewardSpins: 3,
-    actionLink: tweetIntent(
-      `Just found @SLOBOS — a gamified whitelist roulette for degens 🎰\n\nSpin the wheel, win a GTD WL spot or raffle tickets. No buy-in, just vibes.\n\nNFA but this is the most fun I've had on CT in a while 👇`
-    )
-  },
-  {
-    taskId: 'join_discord',
-    title: 'Join Discord server',
-    description: 'Join the SLOBOS Discord community',
-    rewardSpins: 2,
-    actionLink: 'https://discord.gg/slobos'
-  },
-  {
-    taskId: 'tweet_hype',
-    title: 'Tweet about the roulette',
-    description: 'Post a hype tweet about the SLOBOS roulette',
-    rewardSpins: 2,
-    actionLink: tweetIntent(
-      `The @SLOBOS roulette wheel is live 🟢⚫🔴\n\nFree spins. GTD whitelist spots. No mint price.\n\nThis is how you do community-first launches. Spin or stay poor 🎡`
-    )
-  },
-  {
     taskId: 'invite_friend',
     title: 'Invite a friend',
     description: 'Share your referral link and get a friend to sign up',
