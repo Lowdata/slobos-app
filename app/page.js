@@ -6,7 +6,7 @@ import { createSoundManager } from '@/lib/sounds';
 import { BrowserProvider } from 'ethers';
 
 const CONFIG = {
-  ODDS: { red: 0.45, black: 0.45, green: 0.10 },
+  ODDS: { red: 0.54, black: 0.45, green: 0.01 },
   REWARDS: {
     red: { label: '— Nothing —', tickets: 0 },
     black: { label: '+1 FCFS Spot', tickets: 1 },
@@ -528,6 +528,15 @@ export default function Home() {
             </button>
             <button className="gh-btn" title="How it works" onClick={() => setShowInfo(true)}>ⓘ</button>
           </div>
+          <div className="gh-right">
+            <button className="share-bar-btn" onClick={() => {
+              if (!state.connected) { setConnectStep(1); setShowConnect(true); }
+              else shareToTwitter(`Spinning the @SLOBOS wheel for a GTD whitelist spot 👇\n${refLink()}`);
+            }}>
+              <svg className="gh-ico" fill="currentColor"><use href="#icoShare" /></svg>
+              <span>Share &amp; Invite</span>
+            </button>
+          </div>
         </div>
 
         {/* ===== Main game ===== */}
@@ -594,16 +603,6 @@ export default function Home() {
 
           {/* Right: Wheel */}
           <section className="wheel-card">
-            {/* Share button above the wheel scene */}
-            <div className="wheel-share-bar">
-              <button className="share-bar-btn" onClick={() => {
-                if (!state.connected) { setConnectStep(1); setShowConnect(true); }
-                else shareToTwitter(`Spinning the @SLOBOS wheel for a GTD whitelist spot 👇\n${refLink()}`);
-              }}>
-                <svg className="gh-ico" fill="currentColor"><use href="#icoShare" /></svg>
-                <span>Share &amp; Invite</span>
-              </button>
-            </div>
             <div className={`wheel-scene ${spinning ? 'is-spinning' : ''}`}>
               <div className="glow"></div>
               <div className="gambler" aria-hidden="true">
@@ -620,10 +619,6 @@ export default function Home() {
               {flash && (
                 <div className="result-flash show" style={{ color: flash.color }}>{flash.text}</div>
               )}
-            </div>
-            <div className="wheel-foot">
-              <span className="live-dot"></span> Provably fair · settles on
-              <svg className="feather-sm"><use href="#rhFeather" /></svg> Robinhood Chain
             </div>
           </section>
         </main>

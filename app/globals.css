@@ -215,8 +215,7 @@ button { font-family: var(--font); cursor: pointer; }
 
 /* Share bar above wheel scene */
 .wheel-share-bar {
-  display: flex; justify-content: flex-end; padding: 10px 16px;
-  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: flex-end; padding-bottom: 10px;
 }
 .share-bar-btn {
   display: flex; align-items: center; gap: 8px;
