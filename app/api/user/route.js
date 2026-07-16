@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import connectToDatabase from '@/lib/mongodb';
 import { requireUser } from '@/lib/auth';
+import { isRateLimited } from '@/lib/rate-limit';
 import { findUserByWallet, serializeUser } from '@/lib/users';
 import User from '@/models/User';
 import { NextResponse } from 'next/server';
@@ -24,6 +25,9 @@ function generateRefCode() {
 
 export async function GET(req) {
   try {
+    if (isRateLimited(req, 'user-read', { limit: 60, windowMs: 60 * 1000 })) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
     const walletAddress = await requireUser(req);
     if (!walletAddress) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -42,9 +46,15 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    if (isRateLimited(req, 'user-registration-ip', { limit: 10, windowMs: 60 * 60 * 1000 })) {
+      return NextResponse.json({ error: 'Too many registration attempts' }, { status: 429 });
+    }
     const walletAddress = await requireUser(req);
     if (!walletAddress) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    if (isRateLimited(req, 'user-registration-wallet', { limit: 3, windowMs: 60 * 60 * 1000, subject: walletAddress })) {
+      return NextResponse.json({ error: 'Too many registration attempts' }, { status: 429 });
     }
 
     const { twitter, referredBy } = await req.json();

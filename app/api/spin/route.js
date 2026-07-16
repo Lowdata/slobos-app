@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import connectToDatabase from '@/lib/mongodb';
 import { requireUser } from '@/lib/auth';
+import { isRateLimited } from '@/lib/rate-limit';
 import { findUserByWallet, serializeUser } from '@/lib/users';
 import { NextResponse } from 'next/server';
 
@@ -22,6 +23,9 @@ export async function POST(req) {
     const walletAddress = await requireUser(req);
     if (!walletAddress) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    if (isRateLimited(req, 'spin-wallet', { limit: 30, windowMs: 60 * 1000, subject: walletAddress })) {
+      return NextResponse.json({ error: 'Too many spin requests' }, { status: 429 });
     }
 
     await connectToDatabase();

@@ -9,15 +9,22 @@ import {
   SESSION_MAX_AGE_SECONDS,
   sessionCookieOptions,
 } from '@/lib/auth';
+import { isRateLimited } from '@/lib/rate-limit';
 import LoginNonce from '@/models/LoginNonce';
 import Session from '@/models/Session';
 
 export async function POST(req) {
   try {
+    if (isRateLimited(req, 'auth-verify-ip', { limit: 30, windowMs: 10 * 60 * 1000 })) {
+      return NextResponse.json({ error: 'Too many login attempts' }, { status: 429 });
+    }
     const { walletAddress, nonce, signature } = await req.json();
     const wallet = normalizeWalletAddress(walletAddress);
     if (!wallet || typeof nonce !== 'string' || typeof signature !== 'string') {
       return NextResponse.json({ error: 'Invalid login request' }, { status: 400 });
+    }
+    if (isRateLimited(req, 'auth-verify-wallet', { limit: 10, windowMs: 10 * 60 * 1000, subject: wallet })) {
+      return NextResponse.json({ error: 'Too many login attempts' }, { status: 429 });
     }
 
     await connectToDatabase();
