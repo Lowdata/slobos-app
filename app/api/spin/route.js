@@ -3,7 +3,7 @@ import User from '@/models/User';
 import { NextResponse } from 'next/server';
 
 const CONFIG = {
-  ODDS: { red: 0.35, black: 0.60, green: 0.05 },
+  ODDS: { red: 0.69, black: 0.30, green: 0.01 },
   GREEN_DOWNGRADE_TICKETS: 3,
 };
 

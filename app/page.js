@@ -6,7 +6,7 @@ import { createSoundManager } from '@/lib/sounds';
 import { BrowserProvider } from 'ethers';
 
 const CONFIG = {
-  ODDS: { red: 0.35, black: 0.60, green: 0.05 },
+  ODDS: { red: 0.69, black: 0.30, green: 0.01 },
   REWARDS: {
     red: { label: '— Nothing —', tickets: 0 },
     black: { label: '+1 FCFS Spot', tickets: 1 },
