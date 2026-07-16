@@ -149,7 +149,7 @@ export default function Home() {
           streak: user.streak,
           referrals: user.referrals,
         }));
-        fetchTasks(user.walletAddress);
+        fetchTasks();
         return user;
       }
     } catch (e) {
@@ -161,9 +161,9 @@ export default function Home() {
     return null;
   };
 
-  const fetchTasks = async (wallet) => {
+  const fetchTasks = async () => {
     try {
-      const res = await fetch(`/api/tasks?wallet=${wallet}`);
+      const res = await fetch('/api/tasks');
       const data = await res.json();
       if (data.tasks && data.tasks.length > 0) {
         setTasks(data.tasks);
@@ -277,7 +277,7 @@ export default function Home() {
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: state.wallet, taskId })
+        body: JSON.stringify({ taskId })
       });
       const data = await res.json();
       if (data.success) {

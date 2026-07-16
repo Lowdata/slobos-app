@@ -1,19 +1,26 @@
 import connectToDatabase from '@/lib/mongodb';
+import mongoose from 'mongoose';
 import Task from '@/models/Task';
 import UserTask from '@/models/UserTask';
 import User from '@/models/User';
+import { requireUser } from '@/lib/auth';
+import { isRateLimited } from '@/lib/rate-limit';
+import { findUserByWallet, serializeUser } from '@/lib/users';
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
   try {
+    if (isRateLimited(req, 'tasks-read', { limit: 60, windowMs: 60 * 1000 })) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
     await connectToDatabase();
-    const url = new URL(req.url);
-    const walletAddress = url.searchParams.get('wallet');
+    const walletAddress = await requireUser(req);
 
     // Return all tasks
     const tasks = await Task.find({});
     
-    // If wallet provided, return completed tasks too
+    // Completion status is derived from the authenticated session rather than
+    // a wallet address supplied in the query string.
     let completed = [];
     if (walletAddress) {
       const userTasks = await UserTask.find({ walletAddress });
@@ -28,36 +35,67 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    if (isRateLimited(req, 'task-claim-ip', { limit: 30, windowMs: 60 * 1000 })) {
+      return NextResponse.json({ error: 'Too many task requests' }, { status: 429 });
+    }
+    const walletAddress = await requireUser(req);
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    if (isRateLimited(req, 'task-claim-wallet', { limit: 10, windowMs: 60 * 1000, subject: walletAddress })) {
+      return NextResponse.json({ error: 'Too many task requests' }, { status: 429 });
+    }
+
     await connectToDatabase();
     const body = await req.json();
-    const { walletAddress, taskId } = body;
+    const { taskId } = body;
 
-    if (!walletAddress || !taskId) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    if (typeof taskId !== 'string' || taskId.length === 0 || taskId.length > 100 || taskId.trim() !== taskId) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
 
-    const task = await Task.findOne({ taskId });
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    const session = await mongoose.startSession();
+    let task;
+    let user;
+    let outcome;
+    try {
+      await session.withTransaction(async () => {
+        task = await Task.findOne({ taskId }).session(session);
+        if (!task) {
+          outcome = 'task-not-found';
+          return;
+        }
+
+        const existingUser = await findUserByWallet(walletAddress, session);
+        if (!existingUser) {
+          outcome = 'user-not-found';
+          return;
+        }
+
+        // The unique index rejects duplicate claims; the transaction makes the
+        // completion record and atomic reward increment succeed or fail together.
+        await UserTask.create([{ walletAddress, taskId }], { session });
+        user = await User.findByIdAndUpdate(
+          existingUser._id,
+          { $inc: { spinsAvailable: task.rewardSpins } },
+          { new: true, session },
+        );
+      });
+    } finally {
+      await session.endSession();
     }
 
-    const existing = await UserTask.findOne({ walletAddress, taskId });
-    if (existing) {
+    if (outcome) {
+      return NextResponse.json(
+        { error: outcome === 'task-not-found' ? 'Task not found' : 'User not found' },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ success: true, rewardSpins: task.rewardSpins, user: serializeUser(user) });
+  } catch (error) {
+    if (error?.code === 11000) {
       return NextResponse.json({ error: 'Task already completed' }, { status: 400 });
     }
-
-    // Complete task
-    await UserTask.create({ walletAddress, taskId });
-    
-    // Reward user
-    const user = await User.findOne({ walletAddress });
-    if (user) {
-      user.spinsAvailable += task.rewardSpins;
-      await user.save();
-    }
-
-    return NextResponse.json({ success: true, rewardSpins: task.rewardSpins, user });
-  } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

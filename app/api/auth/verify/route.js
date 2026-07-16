@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyMessage } from 'ethers';
+import mongoose from 'mongoose';
 import connectToDatabase from '@/lib/mongodb';
 import {
   createRandomToken,
@@ -34,7 +35,7 @@ export async function POST(req) {
         walletAddress: wallet,
         nonceHash: hashValue(nonce),
         usedAt: null,
-        expiresAt: { $gt: now },
+        expiresAt: mongoose.trusted({ $gt: now }),
       },
       { $set: { usedAt: now } },
       { new: true },

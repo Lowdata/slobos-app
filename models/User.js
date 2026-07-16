@@ -3,7 +3,9 @@ import mongoose from 'mongoose';
 const UserSchema = new mongoose.Schema({
   walletAddress: { type: String, required: true, unique: true },
   username: { type: String, required: true },
-  twitter: { type: String, default: null },
+  // Handles are canonicalized by the registration route so the unique index
+  // treats @Example and example as the same account.
+  twitter: { type: String, default: null, unique: true, sparse: true },
   referralCode: { type: String, required: true, unique: true },
   referredBy: { type: String, default: null },
   tickets: { type: Number, default: 0 },

@@ -61,6 +61,7 @@ export async function POST(req) {
     if (typeof twitter !== 'string' || !HANDLE_PATTERN.test(twitter.trim())) {
       return NextResponse.json({ error: 'Enter a valid Twitter handle' }, { status: 400 });
     }
+    const normalizedTwitter = `@${twitter.trim().replace(/^@/, '').toLowerCase()}`;
     if (referredBy !== undefined && typeof referredBy !== 'string') {
       return NextResponse.json({ error: 'Invalid referral code' }, { status: 400 });
     }
@@ -75,6 +76,10 @@ export async function POST(req) {
     if (existingUser) {
       return NextResponse.json(serializeUser(existingUser));
     }
+    const existingTwitterUser = await User.findOne({ twitter: normalizedTwitter });
+    if (existingTwitterUser) {
+      return NextResponse.json({ error: 'Twitter account is already linked to another wallet' }, { status: 409 });
+    }
 
     const session = await mongoose.startSession();
     let user;
@@ -83,8 +88,8 @@ export async function POST(req) {
         const referralCode = generateRefCode();
         [user] = await User.create([{
           walletAddress,
-          username: twitter.trim().replace('@', ''),
-          twitter: twitter.trim(),
+          username: normalizedTwitter.slice(1),
+          twitter: normalizedTwitter,
           referralCode,
           spinsAvailable: 1,
         }], { session });
@@ -95,8 +100,8 @@ export async function POST(req) {
           {
             referralCode: normalizedReferralCode,
             $or: [
-              { referralRewards: { $lt: REFERRAL_REWARD_LIMIT } },
-              { referralRewards: { $exists: false } },
+              { referralRewards: mongoose.trusted({ $lt: REFERRAL_REWARD_LIMIT }) },
+              { referralRewards: mongoose.trusted({ $exists: false }) },
             ],
           },
           {
