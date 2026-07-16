@@ -369,8 +369,6 @@ export default function Home() {
     try {
       const res = await fetch('/api/spin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
       });
       const data = await res.json();
 
