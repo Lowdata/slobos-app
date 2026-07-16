@@ -1,8 +1,26 @@
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 import connectToDatabase from '@/lib/mongodb';
 import { requireUser } from '@/lib/auth';
 import { findUserByWallet, serializeUser } from '@/lib/users';
 import User from '@/models/User';
 import { NextResponse } from 'next/server';
+
+const HANDLE_PATTERN = /^@?[A-Za-z0-9_]{1,15}$/;
+const REFERRAL_CODE_PATTERN = /^[A-Z0-9]{4,7}$/;
+const DEFAULT_REFERRAL_REWARD_LIMIT = 100;
+const parsedReferralLimit = Number.parseInt(process.env.REFERRAL_REWARD_LIMIT || '', 10);
+const REFERRAL_REWARD_LIMIT = Number.isSafeInteger(parsedReferralLimit) && parsedReferralLimit >= 0
+  ? parsedReferralLimit
+  : DEFAULT_REFERRAL_REWARD_LIMIT;
+const REFERRAL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+function generateRefCode() {
+  return Array.from(
+    { length: 7 },
+    () => REFERRAL_ALPHABET[crypto.randomInt(REFERRAL_ALPHABET.length)],
+  ).join('');
+}
 
 export async function GET(req) {
   try {
@@ -30,51 +48,66 @@ export async function POST(req) {
     }
 
     const { twitter, referredBy } = await req.json();
-    if (typeof twitter !== 'string' || !twitter.trim()) {
-      return NextResponse.json({ error: 'A Twitter handle is required' }, { status: 400 });
+    if (typeof twitter !== 'string' || !HANDLE_PATTERN.test(twitter.trim())) {
+      return NextResponse.json({ error: 'Enter a valid Twitter handle' }, { status: 400 });
     }
     if (referredBy !== undefined && typeof referredBy !== 'string') {
       return NextResponse.json({ error: 'Invalid referral code' }, { status: 400 });
     }
 
+    const normalizedReferralCode = referredBy?.trim().toUpperCase() || null;
+    if (normalizedReferralCode && !REFERRAL_CODE_PATTERN.test(normalizedReferralCode)) {
+      return NextResponse.json({ error: 'Invalid referral code' }, { status: 400 });
+    }
+
     await connectToDatabase();
-    let user = await findUserByWallet(walletAddress);
-    if (user) {
-      return NextResponse.json(serializeUser(user));
+    const existingUser = await findUserByWallet(walletAddress);
+    if (existingUser) {
+      return NextResponse.json(serializeUser(existingUser));
     }
 
-    const username = twitter.trim().replace('@', '');
-    const generateRefCode = (name) => {
-      const prefix = name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase();
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-      return (prefix + random).slice(0, 7);
-    };
+    const session = await mongoose.startSession();
+    let user;
+    try {
+      await session.withTransaction(async () => {
+        const referralCode = generateRefCode();
+        [user] = await User.create([{
+          walletAddress,
+          username: twitter.trim().replace('@', ''),
+          twitter: twitter.trim(),
+          referralCode,
+          spinsAvailable: 1,
+        }], { session });
 
-    let refBy = null;
-    if (referredBy?.trim()) {
-      const referrer = await User.findOne({ referralCode: referredBy.trim() });
-      if (referrer) {
-        refBy = referrer.referralCode;
-        referrer.spinsAvailable += 1;
-        referrer.tickets += 1;
-        referrer.referrals += 1;
-        await referrer.save();
-      }
+        if (!normalizedReferralCode) return;
+
+        const reward = await User.findOneAndUpdate(
+          {
+            referralCode: normalizedReferralCode,
+            $or: [
+              { referralRewards: { $lt: REFERRAL_REWARD_LIMIT } },
+              { referralRewards: { $exists: false } },
+            ],
+          },
+          {
+            $inc: {
+              spinsAvailable: 1,
+              tickets: 1,
+              referrals: 1,
+              referralRewards: 1,
+            },
+          },
+          { new: true, session },
+        );
+
+        if (reward) {
+          user.referredBy = reward.referralCode;
+          await user.save({ session });
+        }
+      });
+    } finally {
+      await session.endSession();
     }
-
-    let referralCode = generateRefCode(username);
-    while (await User.findOne({ referralCode })) {
-      referralCode = generateRefCode(username);
-    }
-
-    user = await User.create({
-      walletAddress,
-      username,
-      twitter: twitter.trim(),
-      referralCode,
-      referredBy: refBy,
-      spinsAvailable: 1,
-    });
 
     return NextResponse.json(serializeUser(user), { status: 201 });
   } catch (error) {

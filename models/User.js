@@ -13,7 +13,8 @@ const UserSchema = new mongoose.Schema({
   lastResetDate: { type: String, default: null }, // YYYY-MM-DD
   lastPlayDate: { type: String, default: null }, // YYYY-MM-DD
   bonusEarnedToday: { type: Number, default: 0 },
-  referrals: { type: Number, default: 0 }
+  referrals: { type: Number, default: 0 },
+  referralRewards: { type: Number, default: 0 },
 });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
