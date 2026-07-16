@@ -70,7 +70,6 @@ export default function Home() {
   // Inputs
   const [referralInput, setReferralInput] = useState('');
   const [twitterInput, setTwitterInput] = useState('');
-  const [connectedWallet, setConnectedWallet] = useState(null);
 
   // Tasks
   const [tasks, setTasks] = useState([]);
@@ -101,14 +100,9 @@ export default function Home() {
       setReferralInput(refParam);
     }
 
-    const savedWallet = localStorage.getItem('slobos_wallet');
-    if (savedWallet) {
-      fetchUserData(savedWallet);
-    } else {
-      setLoading(false);
-      // Auto-show connect modal if not logged in
-      setTimeout(() => setShowConnect(true), 600);
-    }
+    fetchUserData().then((user) => {
+      if (!user) setTimeout(() => setShowConnect(true), 600);
+    });
   }, []);
 
   useEffect(() => {
@@ -133,34 +127,38 @@ export default function Home() {
   };
 
   // ===== Data fetching =====
-  const fetchUserData = async (wallet) => {
+  const fetchUserData = async () => {
     try {
       const res = await fetch('/api/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet, twitter: 'returning' })
+        method: 'GET',
+        credentials: 'same-origin',
       });
+      if (!res.ok) return null;
       const data = await res.json();
-      if (data && data.walletAddress) {
+      if (data?.user?.walletAddress) {
+        const user = data.user;
         setState(s => ({
           ...s,
           connected: true,
-          wallet: data.walletAddress,
-          twitter: data.twitter || data.walletAddress.substring(0, 6),
-          refCode: data.referralCode,
-          spinsAvailable: data.spinsAvailable,
-          tickets: data.tickets,
-          wonWL: data.wonWL,
-          streak: data.streak,
-          referrals: data.referrals,
+          wallet: user.walletAddress,
+          twitter: user.twitter || user.walletAddress.substring(0, 6),
+          refCode: user.referralCode,
+          spinsAvailable: user.spinsAvailable,
+          tickets: user.tickets,
+          wonWL: user.wonWL,
+          streak: user.streak,
+          referrals: user.referrals,
         }));
-        localStorage.setItem('slobos_wallet', data.walletAddress);
-        fetchTasks(data.walletAddress);
+        fetchTasks(user.walletAddress);
+        return user;
       }
     } catch (e) {
       console.error(e);
+      return null;
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+    return null;
   };
 
   const fetchTasks = async (wallet) => {
@@ -190,15 +188,28 @@ export default function Home() {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send('eth_requestAccounts', []);
       const address = accounts[0];
-      setConnectedWallet(address);
+      const nonceRes = await fetch('/api/auth/nonce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: address }),
+      });
+      const nonceData = await nonceRes.json();
+      if (!nonceRes.ok) throw new Error(nonceData.error || 'Could not create login request');
 
-      // Check if this wallet already has an account
-      const checkRes = await fetch(`/api/user?wallet=${address}`);
-      const checkData = await checkRes.json();
-      if (checkData.exists && checkData.user) {
-        // Existing user — log them in directly
-        localStorage.setItem('slobos_wallet', address);
-        await fetchUserData(address);
+      const signer = await provider.getSigner();
+      const signature = await signer.signMessage(nonceData.message);
+      const verifyRes = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: address, nonce: nonceData.nonce, signature }),
+      });
+      if (!verifyRes.ok) {
+        const verifyData = await verifyRes.json();
+        throw new Error(verifyData.error || 'Wallet signature could not be verified');
+      }
+
+      const user = await fetchUserData();
+      if (user) {
         setShowConnect(false);
         setConnectStep(1);
         toast('Welcome back! 🎰');
@@ -228,7 +239,6 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          walletAddress: connectedWallet,
           twitter: handle,
           referredBy: referralInput.trim(),
         })
@@ -236,8 +246,7 @@ export default function Home() {
       const data = await res.json();
 
       if (data.walletAddress) {
-        localStorage.setItem('slobos_wallet', data.walletAddress);
-        await fetchUserData(data.walletAddress);
+        await fetchUserData();
         setShowConnect(false);
         setConnectStep(1);
         toast('🎰 Welcome to SLOBOS!');
@@ -361,7 +370,7 @@ export default function Home() {
       const res = await fetch('/api/spin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: state.wallet })
+        body: JSON.stringify({})
       });
       const data = await res.json();
 
@@ -800,7 +809,10 @@ export default function Home() {
           <input type="text" readOnly value={refLink()} />
           <button className="secondary" style={{ margin: 0 }} onClick={() => { navigator.clipboard?.writeText(refLink()); toast('Copied'); }}>Copy</button>
         </div>
-        <button className="secondary" style={{ marginTop: '16px' }} onClick={() => { localStorage.removeItem('slobos_wallet'); window.location.reload(); }}>Logout</button>
+        <button className="secondary" style={{ marginTop: '16px' }} onClick={async () => {
+          await fetch('/api/auth/logout', { method: 'POST' });
+          window.location.reload();
+        }}>Logout</button>
         <button className="secondary" onClick={() => setShowAccount(false)}>Close</button>
       </Modal>
 

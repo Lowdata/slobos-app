@@ -1,5 +1,6 @@
 import connectToDatabase from '@/lib/mongodb';
-import User from '@/models/User';
+import { requireUser } from '@/lib/auth';
+import { findUserByWallet, serializeUser } from '@/lib/users';
 import { NextResponse } from 'next/server';
 
 const CONFIG = {
@@ -16,15 +17,13 @@ function rollColor() {
 
 export async function POST(req) {
   try {
-    await connectToDatabase();
-    const body = await req.json();
-    const { walletAddress } = body;
-
+    const walletAddress = await requireUser(req);
     if (!walletAddress) {
-      return NextResponse.json({ error: 'Wallet address required' }, { status: 400 });
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const user = await User.findOne({ walletAddress });
+    await connectToDatabase();
+    const user = await findUserByWallet(walletAddress);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -34,10 +33,9 @@ export async function POST(req) {
     }
 
     user.spinsAvailable -= 1;
-    
     const result = rollColor();
     let ticketsWon = 0;
-    
+
     if (result === 'black') {
       user.tickets += 1;
       ticketsWon = 1;
@@ -51,10 +49,8 @@ export async function POST(req) {
     }
 
     await user.save();
-
-    return NextResponse.json({ result, user, ticketsWon });
-  } catch (error) {
-    console.error("Spin API Error:", error);
+    return NextResponse.json({ result, user: serializeUser(user), ticketsWon });
+  } catch {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
